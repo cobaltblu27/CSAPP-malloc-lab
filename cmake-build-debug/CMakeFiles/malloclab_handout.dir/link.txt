@@ -1,0 +1,1 @@
+/usr/bin/cc -g   CMakeFiles/malloclab_handout.dir/clock.c.o CMakeFiles/malloclab_handout.dir/fcyc.c.o CMakeFiles/malloclab_handout.dir/fsecs.c.o CMakeFiles/malloclab_handout.dir/ftimer.c.o CMakeFiles/malloclab_handout.dir/mdriver.c.o CMakeFiles/malloclab_handout.dir/memlib.c.o CMakeFiles/malloclab_handout.dir/mm.c.o  -o malloclab_handout 

@@ -1,0 +1,264 @@
+/*
+ * mm-naive.c - The fastest, least memory-efficient malloc package.
+ * 
+ * In this naive approach, a block is allocated by simply incrementing
+ * the brk pointer.  A block is pure payload. There are no headers or
+ * footers.  Blocks are never coalesced or reused. Realloc is
+ * implemented directly using mm_malloc and mm_free.
+ *
+ * NOTE TO STUDENTS: Replace this header comment with your own header
+ * comment that gives a high level description of your solution.
+ */
+#include <stdio.h>
+#include <stdlib.h>
+#include <assert.h>
+#include <unistd.h>
+#include <string.h>
+
+#include "mm.h"
+#include "memlib.h"
+
+/*********************************************************
+ * NOTE TO STUDENTS: Before you do anything else, please
+ * provide your team information in the following struct.
+ ********************************************************/
+team_t team = {
+        /* Team name */
+        "ateam",
+        /* First member's full name */
+        "Harry Bovik",
+        /* First member's email address */
+        "bovik@cs.cmu.edu",
+        /* Second member's full name (leave blank if none) */
+        "",
+        /* Second member's email address (leave blank if none) */
+        ""
+};
+
+/* single word (4) or double word (8) alignment */
+#define ALIGNMENT 8
+
+/* rounds up to the nearest multiple of ALIGNMENT */
+#define ALIGN(size) (((size) + (ALIGNMENT-1)) & ~0x7)
+
+#define ALLOCATED(p) (*(unsigned int *) (p) & 0x7)
+
+#define SIZE_T_SIZE (ALIGN(sizeof(size_t)))
+
+/* returns size of block from block header or footer */
+#define GETSIZE(p) (*(unsigned int *)(p) & ~0x7)
+
+
+/* pointer to next and previous block, 4-byte offset is added to pointer p */
+#define LINKEDPREV(p) ((p) + 4)
+#define LINKEDNEXT(p) ((p) + 8)
+
+#define SETPREV(p, next) (*(unsigned int *)((p) + 4) = (unsigned int) (next))
+#define SETNEXT(p, next) (*(unsigned int *)((p) + 8) = (unsigned int) (next))
+
+/* pointer to adjacent blocks, used for coalescing */
+
+#define BEFORE(p) ((p) - GETSIZE((p) - 4))
+#define AFTER(p) ((p) + GETSIZE((p)))
+
+/* makes header and footer from pointer, size and allocation bit */
+#define PACK(p, size, allocated) {*(unsigned int *)(p) = (size) | (allocated);\
+                        *(unsigned int*)((p) + (size) - 4) = (size) | (allocated);}
+
+
+/***********************
+ * Free block structure
+ *
+ * 32              0
+ * -----------------     <- void *p
+ * |   size    |a/f| <- stores size of entire block
+ * |---------------| __  <- return value; aligned to 8-byte
+ * | prev offset   |   |
+ * |---------------|
+ * | next offset   |  old payload
+ * |---------------|
+ * |               | __|
+ * |---------------|
+ * | padding       |
+ * |---------------|
+ * |   size    |a/f|
+ * -----------------
+************************/
+
+static void *startblk;
+static void *lastblk;
+
+static inline int header_valid(void *header);
+void mm_check();
+
+/* 
+ * mm_init - initialize the malloc package.
+ */
+int mm_init(void) {
+    void *p = mem_sbrk(ALIGNMENT * 4 + 4);
+    if (p == (void *) -1)
+        return -1;
+
+    //prologue block, consists of header, footer and root pointer
+    p = p + 4;
+    startblk = p;
+    PACK(p, 16, 1);
+    SETNEXT(p, p + 16);
+    p = p + 16;
+
+    //epilogue block, only consists of header and footer
+    //epilogue block size is 0
+    lastblk = p;
+    PACK(p, 16, 1);
+    SETPREV(p, p - 16);
+    SETNEXT(p, NULL);
+    return 0;
+}
+
+/* 
+ * mm_malloc
+ */
+void *mm_malloc(size_t size) {
+//    int newsize = ALIGN(size + SIZE_T_SIZE);
+//    void *p = mem_sbrk(newsize);
+//    if (p == (void *)-1)
+//	return NULL;
+//    else {
+//        *(size_t *)p = size;
+//        return (void *)((char *)p + SIZE_T_SIZE);
+//    }
+    int newsize = (int) ALIGN(size + ALIGNMENT);
+    int oldsize;
+    void *p;
+    void *next;
+    void *prev;
+    p = mem_heap_lo();
+
+    p = p + 4;// points to first header block
+    while (GETSIZE(p) < newsize) {
+        p = p + *(int *) (p + 8);
+        if (ALLOCATED(p) == 1) {
+            //epilogue block, empty allocated
+            void *new = mem_sbrk(newsize);
+            PACK(new, newsize, 1);
+            return new + 4;
+        }
+    }
+    oldsize = GETSIZE(p);
+    PACK(p, newsize, 1);
+    next = LINKEDNEXT(p);
+    prev = LINKEDPREV(p);
+    if (GETSIZE(p) - newsize < ALIGNMENT * 2) {
+        SETNEXT(LINKEDNEXT(prev), next);
+        SETPREV(LINKEDPREV(next), prev);
+        //extend block with padding to prevent framentation
+        PACK(p, oldsize, 1);
+    } else {
+        int size = GETSIZE(p) - newsize;
+        //fragmentation
+        p = p + newsize;
+        PACK(p, size, 0);
+        SETNEXT(prev, p);
+        SETPREV(next, p);
+    }
+
+    mm_check();
+    return p + 4;
+}
+
+/*
+ * mm_free
+ */
+void mm_free(void *ptr) {
+    void *p;//points to header
+    void *before, *after;
+    void *next, *prev;
+    p = ptr - 4;
+    if (!header_valid(p) || ALLOCATED(p))
+        //compare header and footer, return if invalid
+        return;
+
+    before = BEFORE(p);
+    after = AFTER(p);
+
+    if (!ALLOCATED(before)) {
+        PACK(before, GETSIZE(before) + GETSIZE(p), 0);
+        p = before;
+    }
+    if (!ALLOCATED(after)) {
+        PACK(p, GETSIZE(p) + GETSIZE(after), 0);
+        next = LINKEDNEXT(p);
+        prev = LINKEDPREV(p);
+        SETNEXT(p, next);
+        SETPREV(next, p);
+        SETNEXT(prev, p);
+        SETPREV(p, prev);
+    }
+    mm_check();
+}
+
+/*
+ * mm_realloc - Implemented simply in terms of mm_malloc and mm_free
+ */
+void *mm_realloc(void *ptr, size_t size) {
+    void *oldptr = ptr;
+    void *newptr;
+    size_t copySize;
+
+    newptr = mm_malloc(size);
+    if (newptr == NULL)
+        return NULL;
+    copySize = *(size_t *) ((char *) oldptr - SIZE_T_SIZE);
+    if (size < copySize)
+        copySize = size;
+    memcpy(newptr, oldptr, copySize);
+    mm_free(oldptr);
+    return newptr;
+}
+
+void mm_check() {
+    void *p = startblk;
+    void *heap_end = mem_heap_hi();
+    while (AFTER(p) != heap_end) {//check if its end of heap
+        // TODO check if this causes infinite loop
+
+        //check if p is valid
+        if(p < mem_heap_lo() || p > mem_heap_hi() || (long) p & 0x7){
+            printf("pointer invalid\n");
+            exit(0);
+        }
+
+        //check if header is valid
+        if (!header_valid(p)) {
+            printf("header invalid in %p\n", p);
+            exit(0);
+        }
+
+        //check if connected block is free
+        if (!ALLOCATED(p)) {
+            if (ALLOCATED(LINKEDNEXT(p)) || ALLOCATED(LINKEDPREV(p))) {
+                if (p != startblk && p != lastblk) {
+                    printf("linked free block is not actually free\n");
+                    exit(0);
+                }
+            }
+        }
+
+        p = AFTER(p);
+    }
+
+}
+
+//returns 1 header p is valid
+static inline int header_valid(void *header) {
+    return !(*(unsigned int *) header - *(unsigned int *) (header + GETSIZE(header) - 4));
+}
+
+
+
+
+
+
+
+
+
