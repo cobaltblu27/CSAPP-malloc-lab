@@ -85,6 +85,10 @@ team_t team = {
  * -----------------
 ************************/
 
+/* TODO 1) get rid of segfault on cccp
+ * TODO 2) increase util by preventing fragmentation
+ * TODO 3) move on to red-black tree
+ */
 static void *startblk;
 static void *lastblk;
 
@@ -127,13 +131,14 @@ void *mm_malloc(size_t size) {
 //        *(size_t *)p = size;
 //        return (void *)((char *)p + SIZE_T_SIZE);
 //    }
+    //TODO error on cccp-bal tracefile, runs out of memory on some other
     int newsize = (int) ALIGN(size + ALIGNMENT);
     int oldsize;
     void *p;
     void *next;
     void *prev;
     p = startblk;// points to first header block
-    while (GETSIZE(p) < newsize) {//TODO SEGFAULT
+    while (GETSIZE(p) < newsize) {
         p = LINKEDNEXT(p);
         if (ALLOCATED(p) == 1) {
             //epilogue block, empty allocated
@@ -160,7 +165,7 @@ void *mm_malloc(size_t size) {
         SETPREV(next, p);
     }
     printf("mm succeed\n");
-  //  mm_check();
+    mm_check();
     return p + 4;
 }
 
@@ -192,7 +197,7 @@ void mm_free(void *ptr) {
         SETNEXT(prev, p);
         SETPREV(p, prev);
     }
-  //  mm_check();
+    mm_check();
 }
 
 /*
@@ -210,7 +215,7 @@ void *mm_realloc(void *ptr, size_t size) {
     if (size < copySize)
         copySize = size;
     memcpy(newptr, oldptr, copySize);
-   // mm_free(oldptr);
+    mm_free(oldptr);
     return newptr;
 }
 
