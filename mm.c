@@ -50,8 +50,8 @@ team_t team = {
 
 
 /* pointer to next and previous block, 4-byte offset is added to pointer p */
-#define LINKEDPREV(p) ((p) + 4)
-#define LINKEDNEXT(p) ((p) + 8)
+#define LINKEDPREV(p) ((void *) *(unsigned int *) ((p) + 4))
+#define LINKEDNEXT(p) ((void *) *(unsigned int *) ((p) + 8))
 
 #define SETPREV(p, next) (*(unsigned int *)((p) + 4) = (unsigned int) (next))
 #define SETNEXT(p, next) (*(unsigned int *)((p) + 8) = (unsigned int) (next))
@@ -103,14 +103,14 @@ int mm_init(void) {
     p = p + 4;
     startblk = p;
     PACK(p, 16, 1);
-    SETNEXT(p, p + 16);
     p = p + 16;
 
     //epilogue block, only consists of header and footer
     //epilogue block size is 0
     lastblk = p;
     PACK(p, 16, 1);
-    SETPREV(p, p - 16);
+    SETNEXT(startblk, lastblk);
+    SETPREV(lastblk, startblk);
     SETNEXT(p, NULL);
     return 0;
 }
@@ -132,11 +132,9 @@ void *mm_malloc(size_t size) {
     void *p;
     void *next;
     void *prev;
-    p = mem_heap_lo();
-
-    p = p + 4;// points to first header block
-    while (GETSIZE(p) < newsize) {
-        p = p + *(int *) (p + 8);
+    p = startblk;// points to first header block
+    while (GETSIZE(p) < newsize) {//TODO SEGFAULT
+        p = LINKEDNEXT(p);
         if (ALLOCATED(p) == 1) {
             //epilogue block, empty allocated
             void *new = mem_sbrk(newsize);
@@ -154,15 +152,15 @@ void *mm_malloc(size_t size) {
         //extend block with padding to prevent framentation
         PACK(p, oldsize, 1);
     } else {
-        int size = GETSIZE(p) - newsize;
+        int blksize = GETSIZE(p) - newsize;
         //fragmentation
         p = p + newsize;
-        PACK(p, size, 0);
+        PACK(p, blksize, 0);
         SETNEXT(prev, p);
         SETPREV(next, p);
     }
-
-    mm_check();
+    printf("mm succeed\n");
+  //  mm_check();
     return p + 4;
 }
 
@@ -194,7 +192,7 @@ void mm_free(void *ptr) {
         SETNEXT(prev, p);
         SETPREV(p, prev);
     }
-    mm_check();
+  //  mm_check();
 }
 
 /*
@@ -212,19 +210,17 @@ void *mm_realloc(void *ptr, size_t size) {
     if (size < copySize)
         copySize = size;
     memcpy(newptr, oldptr, copySize);
-    mm_free(oldptr);
+   // mm_free(oldptr);
     return newptr;
 }
 
 void mm_check() {
     void *p = startblk;
     void *heap_end = mem_heap_hi();
-    while (AFTER(p) != heap_end) {//check if its end of heap
-        // TODO check if this causes infinite loop
-
+    while (AFTER(p) < heap_end) {//check if its end of heap
         //check if p is valid
-        if(p < mem_heap_lo() || p > mem_heap_hi() || (long) p & 0x7){
-            printf("pointer invalid\n");
+        if(p < mem_heap_lo() || p > mem_heap_hi() || (long) (p + 4) & 0x7){
+            printf("pointer invalid, %p\n", p);
             exit(0);
         }
 
