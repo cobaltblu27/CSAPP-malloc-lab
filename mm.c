@@ -85,9 +85,9 @@ team_t team = {
  * -----------------
 ************************/
 
-/* TODO 1) get rid of all these sh*tload of bugs
- * TODO 2) increase util by preventing fragmentation
- * TODO 3) move on to red-black tree
+/*
+ * TODO 1) increase util by preventing fragmentation
+ * TODO 2) move on to red-black tree
  */
 static void *startblk;
 static void *lastblk;
@@ -129,17 +129,6 @@ int mm_init(void) {
 /* 
  * mm_malloc
  */
-
-//void *mm_malloc(size_t size) {
-//    int newsize = ALIGN(size + SIZE_T_SIZE);
-//    void *p = mem_sbrk(newsize);
-//    if (p == (void *) -1)
-//        return NULL;
-//    else {
-//        *(size_t *) p = size;
-//        return (void *) ((char *) p + SIZE_T_SIZE);
-//    }
-//}
 
 void *mm_malloc(size_t size) {
     int newsize = (int) ALIGN(size + ALIGNMENT);
