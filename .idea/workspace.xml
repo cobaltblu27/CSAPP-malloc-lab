@@ -12,7 +12,10 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="4154d047-e985-44c7-b41c-340b9bf5c43d" name="Default" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
+      <change beforePath="$PROJECT_DIR$/mdriver" afterPath="$PROJECT_DIR$/mdriver" />
       <change beforePath="$PROJECT_DIR$/mm.c" afterPath="$PROJECT_DIR$/mm.c" />
+      <change beforePath="$PROJECT_DIR$/mm.o" afterPath="$PROJECT_DIR$/mm.o" />
     </list>
     <ignored path="$PROJECT_DIR$/cmake-build-debug/" />
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
@@ -30,10 +33,11 @@
           <file leaf-file-name="mm.c" pinned="false" current-in-tab="true">
             <entry file="file://$PROJECT_DIR$/mm.c">
               <provider selected="true" editor-type-id="text-editor">
-                <state relative-caret-position="91">
-                  <caret line="140" column="34" lean-forward="false" selection-start-line="140" selection-start-column="34" selection-end-line="140" selection-end-column="34" />
+                <state relative-caret-position="775">
+                  <caret line="219" column="24" lean-forward="false" selection-start-line="219" selection-start-column="24" selection-end-line="219" selection-end-column="24" />
                   <folding>
                     <element signature="e#473#491#0" expanded="true" />
+                    <marker date="1525413573911" expanded="true" signature="5911:6130" ph="..." />
                   </folding>
                 </state>
               </provider>
@@ -43,10 +47,10 @@
       </split-first>
       <split-second>
         <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
-          <file leaf-file-name="memlib.c" pinned="false" current-in-tab="false">
+          <file leaf-file-name="memlib.c" pinned="false" current-in-tab="true">
             <entry file="file://$PROJECT_DIR$/memlib.c">
               <provider selected="true" editor-type-id="text-editor">
-                <state relative-caret-position="825">
+                <state relative-caret-position="69">
                   <caret line="46" column="3" lean-forward="false" selection-start-line="46" selection-start-column="3" selection-end-line="46" selection-end-column="3" />
                   <folding>
                     <element signature="e#219#237#0" expanded="true" />
@@ -55,7 +59,7 @@
               </provider>
             </entry>
           </file>
-          <file leaf-file-name="config.h" pinned="false" current-in-tab="true">
+          <file leaf-file-name="config.h" pinned="false" current-in-tab="false">
             <entry file="file://$PROJECT_DIR$/config.h">
               <provider selected="true" editor-type-id="text-editor">
                 <state relative-caret-position="105">
@@ -80,6 +84,7 @@
   <component name="IdeDocumentHistory">
     <option name="CHANGED_PATHS">
       <list>
+        <option value="$PROJECT_DIR$/memlib.c" />
         <option value="$PROJECT_DIR$/mm.c" />
       </list>
     </option>
@@ -173,12 +178,12 @@
       <workItem from="1525150282324" duration="11257000" />
       <workItem from="1525234142491" duration="10427000" />
       <workItem from="1525268345939" duration="7000" />
-      <workItem from="1525329812449" duration="8663000" />
+      <workItem from="1525329812449" duration="14757000" />
     </task>
     <servers />
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="31184000" />
+    <option name="totallyTimeSpent" value="37278000" />
   </component>
   <component name="ToolWindowManager">
     <frame x="260" y="22" width="1922" height="1092" extended-state="6" />
@@ -223,6 +228,7 @@
           <caret line="151" column="12" lean-forward="false" selection-start-line="151" selection-start-column="12" selection-end-line="151" selection-end-column="12" />
           <folding>
             <element signature="e#473#491#0" expanded="true" />
+            <marker date="1525413573911" expanded="true" signature="5911:6130" ph="..." />
           </folding>
         </state>
       </provider>
@@ -243,6 +249,7 @@
           <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
           <folding>
             <element signature="e#473#491#0" expanded="true" />
+            <marker date="1525413573911" expanded="true" signature="5911:6130" ph="..." />
           </folding>
         </state>
       </provider>
@@ -253,6 +260,7 @@
           <caret line="115" column="2" lean-forward="true" selection-start-line="115" selection-start-column="2" selection-end-line="115" selection-end-column="2" />
           <folding>
             <element signature="e#473#491#0" expanded="true" />
+            <marker date="1525413573911" expanded="true" signature="5911:6130" ph="..." />
           </folding>
         </state>
       </provider>
@@ -280,6 +288,7 @@
           <caret line="99" column="0" lean-forward="false" selection-start-line="99" selection-start-column="0" selection-end-line="99" selection-end-column="0" />
           <folding>
             <element signature="e#473#491#0" expanded="true" />
+            <marker date="1525413573911" expanded="true" signature="5911:6130" ph="..." />
           </folding>
         </state>
       </provider>
@@ -304,6 +313,7 @@
           <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
           <folding>
             <element signature="e#473#491#0" expanded="true" />
+            <marker date="1525413573911" expanded="true" signature="5911:6130" ph="..." />
           </folding>
         </state>
       </provider>
@@ -321,6 +331,7 @@
           <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
           <folding>
             <element signature="e#473#491#0" expanded="true" />
+            <marker date="1525413573911" expanded="true" signature="5911:6130" ph="..." />
           </folding>
         </state>
       </provider>
@@ -362,16 +373,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/memlib.c">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="825">
-          <caret line="46" column="3" lean-forward="false" selection-start-line="46" selection-start-column="3" selection-end-line="46" selection-end-column="3" />
-          <folding>
-            <element signature="e#219#237#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/config.h">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="105">
@@ -380,12 +381,23 @@
         </state>
       </provider>
     </entry>
+    <entry file="file://$PROJECT_DIR$/memlib.c">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="69">
+          <caret line="46" column="3" lean-forward="false" selection-start-line="46" selection-start-column="3" selection-end-line="46" selection-end-column="3" />
+          <folding>
+            <element signature="e#219#237#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/mm.c">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="91">
-          <caret line="140" column="34" lean-forward="false" selection-start-line="140" selection-start-column="34" selection-end-line="140" selection-end-column="34" />
+        <state relative-caret-position="775">
+          <caret line="219" column="24" lean-forward="false" selection-start-line="219" selection-start-column="24" selection-end-line="219" selection-end-column="24" />
           <folding>
             <element signature="e#473#491#0" expanded="true" />
+            <marker date="1525413573911" expanded="true" signature="5911:6130" ph="..." />
           </folding>
         </state>
       </provider>

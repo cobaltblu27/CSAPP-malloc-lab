@@ -42,6 +42,7 @@ team_t team = {
 #define ALIGN(size) (((size) + (ALIGNMENT-1)) & ~0x7)
 
 #define ALLOCATED(p) (*(unsigned int *) (p) & 0x7)
+#define ISFREE(p) (0 == (*(unsigned int *) (p) & 0x7))
 
 #define SIZE_T_SIZE (ALIGN(sizeof(size_t)))
 
@@ -57,7 +58,6 @@ team_t team = {
 #define SETNEXT(p, next) (*(unsigned int *)((p) + 8) = (unsigned int) (next))
 
 /* pointer to adjacent blocks, used for coalescing */
-
 #define BEFORE(p) ((p) - GETSIZE((p) - 4))
 #define AFTER(p) ((p) + GETSIZE((p)))
 
@@ -93,6 +93,7 @@ static void *startblk;
 static void *lastblk;
 
 static inline int header_valid(void *header);
+
 void mm_check();
 
 /* 
@@ -132,6 +133,7 @@ void *mm_malloc(size_t size) {
 //        return (void *)((char *)p + SIZE_T_SIZE);
 //    }
     //TODO error on cccp-bal tracefile, runs out of memory on some other
+    printf("mm\n");
     int newsize = (int) ALIGN(size + ALIGNMENT);
     int oldsize;
     void *p;
@@ -139,6 +141,7 @@ void *mm_malloc(size_t size) {
     void *prev;
     p = startblk;// points to first header block
     while (GETSIZE(p) < newsize) {
+        printf("%d %d\n", GETSIZE(p), newsize);
         p = LINKEDNEXT(p);
         if (ALLOCATED(p) == 1) {
             //epilogue block, empty allocated
@@ -176,27 +179,50 @@ void mm_free(void *ptr) {
     void *p;//points to header
     void *before, *after;
     void *next, *prev;
+    size_t blksize;
     p = ptr - 4;
-    if (!header_valid(p) || ALLOCATED(p))
+    if (!header_valid(p) || ALLOCATED(p) != 0x1) {
         //compare header and footer, return if invalid
         return;
+    }
+    blksize = GETSIZE(p);
 
     before = BEFORE(p);
     after = AFTER(p);
 
-    if (!ALLOCATED(before)) {
-        PACK(before, GETSIZE(before) + GETSIZE(p), 0);
+    PACK(p, blksize, 0);
+
+    if (ISFREE(before)) {
+        blksize += GETSIZE(before);
+        PACK(before, blksize, 0);
         p = before;
-    }
-    if (!ALLOCATED(after)) {
-        PACK(p, GETSIZE(p) + GETSIZE(after), 0);
-        next = LINKEDNEXT(p);
-        prev = LINKEDPREV(p);
+        if (ISFREE(after) && after < mem_heap_hi()) {
+            next = LINKEDNEXT(after);
+            prev = LINKEDPREV(after);
+            PACK(p, blksize + GETSIZE(after), 0);
+            SETNEXT(prev, next);
+            SETPREV(next, prev);
+            SETNEXT(prev, next);
+            SETPREV(next, prev);
+        }
+    } else if (ISFREE(after) && after < mem_heap_hi()) {
+        next = LINKEDNEXT(after);
+        prev = LINKEDPREV(after);
+        PACK(p, blksize + GETSIZE(after), 0);
+
         SETNEXT(p, next);
         SETPREV(next, p);
         SETNEXT(prev, p);
         SETPREV(p, prev);
+    } else {
+        void *first = LINKEDNEXT(startblk);
+        PACK(p, blksize, 0);
+        SETNEXT(p, first);
+        SETPREV(first, p);
+        SETNEXT(startblk, p);
+        SETPREV(p, startblk);
     }
+    printf("free\n");
     mm_check();
 }
 
@@ -224,7 +250,7 @@ void mm_check() {
     void *heap_end = mem_heap_hi();
     while (AFTER(p) < heap_end) {//check if its end of heap
         //check if p is valid
-        if(p < mem_heap_lo() || p > mem_heap_hi() || (long) (p + 4) & 0x7){
+        if (p < mem_heap_lo() || p > mem_heap_hi() || (long) (p + 4) & 0x7) {
             printf("pointer invalid, %p\n", p);
             exit(0);
         }
@@ -236,9 +262,10 @@ void mm_check() {
         }
 
         //check if connected block is free
-        if (!ALLOCATED(p)) {
+        if (ISFREE(p)) {
+            printf("mm_check: %p %p\n", LINKEDNEXT(p), LINKEDPREV(p));
             if (ALLOCATED(LINKEDNEXT(p)) || ALLOCATED(LINKEDPREV(p))) {
-                if (p != startblk && p != lastblk) {
+                if (LINKEDPREV(p) != startblk && LINKEDNEXT(p) != lastblk) {
                     printf("linked free block is not actually free\n");
                     exit(0);
                 }
