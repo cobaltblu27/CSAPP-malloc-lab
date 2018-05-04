@@ -85,18 +85,24 @@ team_t team = {
  * -----------------
 ************************/
 
-/* TODO 1) get rid of segfault on cccp
+/* TODO 1) get rid of all these sh*tload of bugs
  * TODO 2) increase util by preventing fragmentation
  * TODO 3) move on to red-black tree
  */
 static void *startblk;
 static void *lastblk;
 
+extern int verbose;
+
 static inline int header_valid(void *header);
 
 void mm_check();
 
-/* 
+void Exit(int st);
+
+void blkstatus(void *ptr);
+
+/*
  * mm_init - initialize the malloc package.
  */
 int mm_init(void) {
@@ -108,7 +114,7 @@ int mm_init(void) {
     p = p + 4;
     startblk = p;
     PACK(p, 16, 1);
-    p = p + 16;
+    p = AFTER(p);
 
     //epilogue block, only consists of header and footer
     //epilogue block size is 0
@@ -133,22 +139,24 @@ void *mm_malloc(size_t size) {
 //        return (void *)((char *)p + SIZE_T_SIZE);
 //    }
     //TODO error on cccp-bal tracefile, runs out of memory on some other
-    printf("mm\n");
     int newsize = (int) ALIGN(size + ALIGNMENT);
     int oldsize;
     void *p;
     void *next;
     void *prev;
     p = startblk;// points to first header block
-    while (GETSIZE(p) < newsize) {
-        printf("%d %d\n", GETSIZE(p), newsize);
+    while (1) {
+        //printf("current blksize: 0x%x mmsize: 0x%x\n", GETSIZE(p), newsize);
         p = LINKEDNEXT(p);
         if (ALLOCATED(p) == 1) {
             //epilogue block, empty allocated
             void *new = mem_sbrk(newsize);
             PACK(new, newsize, 1);
+            if (verbose)
+                printf("allocated %-4x sized block in %p, heap ends in: %p\n", GETSIZE(new), new, mem_heap_hi());
             return new + 4;
-        }
+        } else if (GETSIZE(p) > newsize)
+            break;
     }
     oldsize = GETSIZE(p);
     PACK(p, newsize, 1);
@@ -167,7 +175,8 @@ void *mm_malloc(size_t size) {
         SETNEXT(prev, p);
         SETPREV(next, p);
     }
-    printf("mm succeed\n");
+    if (verbose)
+        printf("mm succeed\n");
     mm_check();
     return p + 4;
 }
@@ -179,13 +188,15 @@ void mm_free(void *ptr) {
     void *p;//points to header
     void *before, *after;
     void *next, *prev;
-    size_t blksize;
+    int blksize;
     p = ptr - 4;
     if (!header_valid(p) || ALLOCATED(p) != 0x1) {
         //compare header and footer, return if invalid
         return;
     }
     blksize = GETSIZE(p);
+    if (verbose)
+        printf("freeing block %p\n", p);
 
     before = BEFORE(p);
     after = AFTER(p);
@@ -222,7 +233,6 @@ void mm_free(void *ptr) {
         SETNEXT(startblk, p);
         SETPREV(p, startblk);
     }
-    printf("free\n");
     mm_check();
 }
 
@@ -248,31 +258,48 @@ void *mm_realloc(void *ptr, size_t size) {
 void mm_check() {
     void *p = startblk;
     void *heap_end = mem_heap_hi();
+    int freeblks = 0, freelistblks = 0;
     while (AFTER(p) < heap_end) {//check if its end of heap
         //check if p is valid
         if (p < mem_heap_lo() || p > mem_heap_hi() || (long) (p + 4) & 0x7) {
-            printf("pointer invalid, %p\n", p);
-            exit(0);
+            blkstatus(p);
+            Exit(0);
         }
 
         //check if header is valid
         if (!header_valid(p)) {
-            printf("header invalid in %p\n", p);
-            exit(0);
+            blkstatus(p);
+            Exit(0);
         }
 
-        //check if connected block is free
-        if (ISFREE(p)) {
-            printf("mm_check: %p %p\n", LINKEDNEXT(p), LINKEDPREV(p));
-            if (ALLOCATED(LINKEDNEXT(p)) || ALLOCATED(LINKEDPREV(p))) {
-                if (LINKEDPREV(p) != startblk && LINKEDNEXT(p) != lastblk) {
-                    printf("linked free block is not actually free\n");
-                    exit(0);
-                }
-            }
-        }
+        if (ISFREE(p))
+            freeblks++;
 
         p = AFTER(p);
+    }
+
+    p = LINKEDNEXT(startblk);
+
+    while (p != lastblk) {
+        freelistblks++;
+        if (verbose)
+            printf("mm_check: %p %p\n", LINKEDNEXT(p), LINKEDPREV(p));
+        if (ALLOCATED(LINKEDNEXT(p)) || ALLOCATED(LINKEDPREV(p))) {
+            if (verbose)
+                printf("next: %p, prev: %p\n", LINKEDNEXT(p), LINKEDPREV(p));
+            if (LINKEDPREV(p) != startblk && LINKEDNEXT(p) != lastblk) {
+                if (verbose)
+                    printf("linked free block is not actually free\n");
+                Exit(0);
+            }
+        }
+        p = LINKEDNEXT(p);
+    }
+
+    if (freeblks != freelistblks) {
+        if (verbose)
+            printf("free blocks: %d, free blocks in list: %d\n", freeblks, freelistblks);
+        Exit(0);
     }
 
 }
@@ -282,11 +309,25 @@ static inline int header_valid(void *header) {
     return !(*(unsigned int *) header - *(unsigned int *) (header + GETSIZE(header) - 4));
 }
 
+void Exit(int st) {
+    printf("\n--Exit summary--\nheap area: %p to %p\n"
+                   "heap size: %x\n", mem_heap_lo(), mem_heap_hi(), (unsigned int) mem_heapsize());
+    mem_deinit();
+    exit(st);
+}
 
-
-
-
-
-
-
-
+void blkstatus(void *ptr) {
+    if (ptr < mem_heap_lo() || ptr > mem_heap_hi() || (long) (ptr + 4) & 0x7) {
+        printf("pointer invalid, %p\n", ptr);
+        return;
+    }
+    if (!header_valid(ptr)) {
+        printf("header invalid!\n");
+        return;
+    }
+    if (ALLOCATED(ptr))
+        printf("Allocated block %p\n", ptr);
+    else
+        printf("free block %p, prev: %p next: %p\n", ptr, LINKEDPREV(ptr), LINKEDNEXT(ptr));
+    printf("size: %x, before: %p after: %p\n", GETSIZE(ptr), BEFORE(ptr), AFTER(ptr));
+}
