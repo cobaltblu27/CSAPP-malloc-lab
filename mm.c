@@ -54,7 +54,7 @@ team_t team = {
 #define LINKEDPREV(p) ((void *) *(unsigned int *) ((p) + 4))
 #define LINKEDNEXT(p) ((void *) *(unsigned int *) ((p) + 8))
 
-#define SETPREV(p, next) (*(unsigned int *)((p) + 4) = (unsigned int) (next))
+#define SETPREV(p, prev) (*(unsigned int *)((p) + 4) = (unsigned int) (prev))
 #define SETNEXT(p, next) (*(unsigned int *)((p) + 8) = (unsigned int) (next))
 
 /* pointer to adjacent blocks, used for coalescing */
@@ -129,16 +129,19 @@ int mm_init(void) {
 /* 
  * mm_malloc
  */
-void *mm_malloc(size_t size) {
+
+//void *mm_malloc(size_t size) {
 //    int newsize = ALIGN(size + SIZE_T_SIZE);
 //    void *p = mem_sbrk(newsize);
-//    if (p == (void *)-1)
-//	return NULL;
+//    if (p == (void *) -1)
+//        return NULL;
 //    else {
-//        *(size_t *)p = size;
-//        return (void *)((char *)p + SIZE_T_SIZE);
+//        *(size_t *) p = size;
+//        return (void *) ((char *) p + SIZE_T_SIZE);
 //    }
-    //TODO error on cccp-bal tracefile, runs out of memory on some other
+//}
+
+void *mm_malloc(size_t size) {
     int newsize = (int) ALIGN(size + ALIGNMENT);
     int oldsize;
     void *p;
@@ -146,38 +149,38 @@ void *mm_malloc(size_t size) {
     void *prev;
     p = startblk;// points to first header block
     while (1) {
-        //printf("current blksize: 0x%x mmsize: 0x%x\n", GETSIZE(p), newsize);
         p = LINKEDNEXT(p);
         if (ALLOCATED(p) == 1) {
             //epilogue block, empty allocated
             void *new = mem_sbrk(newsize);
             PACK(new, newsize, 1);
-            if (verbose)
-                printf("allocated %-4x sized block in %p, heap ends in: %p\n", GETSIZE(new), new, mem_heap_hi());
             return new + 4;
         } else if (GETSIZE(p) > newsize)
             break;
     }
     oldsize = GETSIZE(p);
-    PACK(p, newsize, 1);
     next = LINKEDNEXT(p);
     prev = LINKEDPREV(p);
-    if (GETSIZE(p) - newsize < ALIGNMENT * 2) {
-        SETNEXT(LINKEDNEXT(prev), next);
-        SETPREV(LINKEDPREV(next), prev);
+    if (oldsize - newsize < ALIGNMENT * 2) {
+        SETNEXT(prev, next);
+        SETPREV(next, prev);
         //extend block with padding to prevent framentation
         PACK(p, oldsize, 1);
     } else {
-        int blksize = GETSIZE(p) - newsize;
+        PACK(p, newsize, 1);
+
+        int blksize = oldsize - newsize;
+        void *after;
         //fragmentation
-        p = p + newsize;
-        PACK(p, blksize, 0);
-        SETNEXT(prev, p);
-        SETPREV(next, p);
+        after = AFTER(p);
+        PACK(after, blksize, 0);
+        SETNEXT(after, next);
+        SETPREV(after, prev);
+        SETNEXT(prev, after);
+        SETPREV(next, after);
     }
-    if (verbose)
-        printf("mm succeed\n");
-    mm_check();
+
+    //mm_check();
     return p + 4;
 }
 
@@ -195,8 +198,6 @@ void mm_free(void *ptr) {
         return;
     }
     blksize = GETSIZE(p);
-    if (verbose)
-        printf("freeing block %p\n", p);
 
     before = BEFORE(p);
     after = AFTER(p);
@@ -233,7 +234,7 @@ void mm_free(void *ptr) {
         SETNEXT(startblk, p);
         SETPREV(p, startblk);
     }
-    mm_check();
+    //mm_check();
 }
 
 /*
@@ -259,7 +260,14 @@ void mm_check() {
     void *p = startblk;
     void *heap_end = mem_heap_hi();
     int freeblks = 0, freelistblks = 0;
-    while (AFTER(p) < heap_end) {//check if its end of heap
+
+    //checking heap start to end
+
+    if (verbose)
+        printf("mm_check - block headers: ");
+    while (p < heap_end) {//check if its end of heap
+        if (verbose)
+            printf("%p", p);
         //check if p is valid
         if (p < mem_heap_lo() || p > mem_heap_hi() || (long) (p + 4) & 0x7) {
             blkstatus(p);
@@ -272,14 +280,21 @@ void mm_check() {
             Exit(0);
         }
 
-        if (ISFREE(p))
+        if (ISFREE(p)) {
             freeblks++;
+            if (verbose)
+                printf("(f,%x) ", GETSIZE(p));
+        } else if (verbose)
+            printf("(a,%x) ", GETSIZE(p));
 
         p = AFTER(p);
     }
+    if (verbose)
+        printf("%p(end)\n", heap_end);
 
     p = LINKEDNEXT(startblk);
 
+    //checking free blocks link by link
     while (p != lastblk) {
         freelistblks++;
         if (verbose)
@@ -301,6 +316,8 @@ void mm_check() {
             printf("free blocks: %d, free blocks in list: %d\n", freeblks, freelistblks);
         Exit(0);
     }
+    if (verbose)
+        printf("mm_check: exiting\n");
 
 }
 
@@ -318,16 +335,16 @@ void Exit(int st) {
 
 void blkstatus(void *ptr) {
     if (ptr < mem_heap_lo() || ptr > mem_heap_hi() || (long) (ptr + 4) & 0x7) {
-        printf("pointer invalid, %p\n", ptr);
+        printf("blkstatus: pointer invalid, %p\n", ptr);
         return;
     }
     if (!header_valid(ptr)) {
-        printf("header invalid!\n");
+        printf("blkstatus: header invalid, %p\n", ptr);
         return;
     }
     if (ALLOCATED(ptr))
-        printf("Allocated block %p\n", ptr);
+        printf("blkstatus: Allocated block %p\n", ptr);
     else
-        printf("free block %p, prev: %p next: %p\n", ptr, LINKEDPREV(ptr), LINKEDNEXT(ptr));
+        printf("blkstatus: free block %p, prev: %p next: %p\n", ptr, LINKEDPREV(ptr), LINKEDNEXT(ptr));
     printf("size: %x, before: %p after: %p\n", GETSIZE(ptr), BEFORE(ptr), AFTER(ptr));
 }
