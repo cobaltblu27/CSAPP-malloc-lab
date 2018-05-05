@@ -474,6 +474,10 @@ static block_t *__find_min__(block_t *node);
 
 static void __double_black__(block_t *node);
 
+static void __left_rotate__(block_t *node);
+
+static void __right_rotate__(block_t *node);
+
 /*****************************************************************/
 
 
@@ -502,39 +506,25 @@ void rm_node(block_t *target) {
     block_t *parent = getparent(target);
     if (getright(target) != lastblk) {
         block_t *rm = __find_min__(getright(target));
-        if (COLOR(rm) == RED) {
-            setleft(rm, getleft(target));
-            setright(rm, getright(target));
-            setparent(rm, parent);
+        if (COLOR(rm) == RED)
             SETCOLOR(rm, COLOR(target));
-        } else {
-            //TODO double-black
+        else{
+            __double_black__(getparent(rm));
         }
+        //TODO move right node of rm
+        setleft(rm, getleft(target));
+        setright(rm, getright(target));
+        setparent(rm, parent);
 
     } else {
-        if (COLOR(target) == RED) {
-            if (getleft(target) != lastblk) {
-                setparent(getleft(target), parent);
-            } else {
-                if (getsize(target) < getsize(parent))
-                    setleft(parent, lastblk);
-                else
-                    setright(parent, lastblk);
-            }
-
-        } else {
-            if (getleft(target) != lastblk) {
-                block_t *left = getleft(target);
+        block_t *left = getleft(target);
+        if (COLOR(left) == RED || COLOR(target) == RED) {
+            if (parent == startblk)
+                setright(parent, left);
+            else
                 setparent(left, parent);
-                if (COLOR(left) == RED)
-                    SETCOLOR(left, BLACK);
-                else {
-                    SETCOLOR(left, BLACK);
-                    __double_black__(left);
-                }
-            } else {
-                //TODO target is leaf node
-            }
+        } else {
+            //TODO target is black leaf(which is also double b)
         }
     }
 
@@ -581,44 +571,36 @@ void __insert_node__(block_t *root, block_t *node) {
 void __insert_balance__(block_t *node) {
 
     block_t *parent = getparent(node);
+    block_t *grandparent = getparent(parent);
 
     if (node == getroot()) {
         SETCOLOR(node, BLACK);
         return;
     }
     if (COLOR(parent) == RED) {
-        block_t *grandparent = getparent(parent);
         if (getsize(grandparent) <= getsize(parent)
             && getleft(grandparent) == lastblk) {
 
             if (getsize(node) < getsize(parent)) {     //  g
-                setright(parent, node);                //     p
-                setleft(parent, lastblk);              //   n
-            }
+                __right_rotate__(node);                //     p
+            }                                          //   n
             SETCOLOR(parent, BLACK);
             SETCOLOR(grandparent, RED);
 
             //counter-clockwise rotate
-            block_t *tmp = getleft(parent);
-            setparent(parent, getparent(grandparent));
-            setleft(parent, grandparent);
-            setright(grandparent, tmp);
+            __left_rotate__(node);
 
         } else if (getsize(parent) < getsize(grandparent)
                    && getright(grandparent) == lastblk) {
 
             if (getsize(parent) <= getsize(node)) {      //    g
-                setleft(parent, node);                   // p
-                setright(parent, lastblk);               //   n
-            }
+                __left_rotate__(node);                   // p
+            }                                            //   n
             SETCOLOR(parent, BLACK);
             SETCOLOR(grandparent, RED);
 
             //clockwise rotate
-            block_t *tmp = getright(parent);
-            setparent(parent, getparent(grandparent));
-            setright(parent, grandparent);
-            setleft(grandparent, tmp);
+            __right_rotate__(node);
 
         } else {
             SETCOLOR(grandparent, RED);
@@ -639,4 +621,22 @@ block_t *__find_min__(block_t *node) {
 
 void __double_black__(block_t *node) {
 
+}
+
+void __left_rotate__(block_t *node) {//input will become root
+    block_t *p1 = getparent(node);
+    block_t *p2 = getparent(p1);
+    block_t *node_l = getleft(node);
+    setparent(node, p2);
+    setright(p1, node_l);
+    setleft(node, p1);
+}
+
+void __right_rotate__(block_t *node) {//input will become root
+    block_t *p1 = getparent(node);
+    block_t *p2 = getparent(p1);
+    block_t *node_r = getright(node);
+    setparent(node, p2);
+    setleft(p1, node_r);
+    setright(node, p1);
 }
