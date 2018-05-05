@@ -143,6 +143,7 @@ static block_t *bestfit(size_t size);
 static void rm_node(block_t *target);
 
 static void insert_node(block_t *node);
+
 /*
  * mm_init - initialize the malloc package.
  */
@@ -251,7 +252,9 @@ void mm_free(void *ptr) {
         setright(p, right);
         setparent(p, parent);
     } else {
-        pack(p, blksize, FREE);
+        pack(p, blksize, FREE | RED);
+        setleft(p, lastblk);
+        setright(p, lastblk);
         insert_node(p);
     }
     mm_check();
@@ -437,7 +440,7 @@ void setparent(block_t *blk, block_t *parentnode) {
     *parentptr = parentnode;
 
     void **targetptr = (void **) parentnode->left;
-    if(getsize(blk) >= getsize(parentnode))
+    if (getsize(blk) >= getsize(parentnode))
         targetptr++; //blk size is greater of equal to parent, blk goes right
     *targetptr = blk;
 }
@@ -459,55 +462,26 @@ block_t *getroot() {
     return getright(startblk);
 }
 
-static block_t *__tree_search__(block_t *node, size_t size) {
-    size_t blksize = getsize(node);
-    if (node == lastblk)
-        return node;
-    if (blksize < size) {
-        return __tree_search__(getright(node), size);
-    } else {
-        struct block *left_search;
-        left_search = __tree_search__(getleft(node), size);
-        if (left_search == lastblk)
-            return node;
-        else return left_search;
-    }
-}
+/***************static functions for recursive call****************/
+
+static block_t *__tree_search__(block_t *node, size_t size);
+
+static void __insert_node__(block_t *root, block_t *node);
+
+static void __insert_balance__(block_t *node);
+
+/*****************************************************************/
+
 
 block_t *bestfit(size_t size) {
     block_t *blk = getroot();
     return __tree_search__(blk, size);
 }
 
-static void __insert_balance__(block_t *node){
-    
-}
-
-static void __insert_node__(block_t *root, block_t *node){
-    if(getsize(root) > getsize(node)){
-        //left
-        if(getleft(root) == lastblk){
-            setleft(root, node);
-            setleft(node, lastblk);
-            setright(node, lastblk);
-            __insert_balance__(node);
-        }
-        else __insert_node__(getleft(root), node);
-    } else{
-        //right
-        if(getright(root) == lastblk){
-            setright(root, node);
-            setleft(node, lastblk);
-            setright(node, lastblk);
-            __insert_balance__(node);
-        }
-        else __insert_node__(getright(root), node);
-    }
-}
 
 void insert_node(block_t *node) {
     block_t *root = getroot();
-    if(root == lastblk){
+    if (root == lastblk) {
         //tree empty, make node root
         setright(startblk, node);
         setright(node, lastblk);
@@ -523,3 +497,91 @@ void rm_node(block_t *target) {
     //TODO
 }
 
+//////////////////////////////////////////////////////////////////////
+
+block_t *__tree_search__(block_t *node, size_t size) {
+    size_t blksize = getsize(node);
+    if (node == lastblk)
+        return node;
+    if (blksize < size) {
+        return __tree_search__(getright(node), size);
+    } else {
+        struct block *left_search;
+        left_search = __tree_search__(getleft(node), size);
+        if (left_search == lastblk)
+            return node;
+        else return left_search;
+    }
+}
+
+
+void __insert_node__(block_t *root, block_t *node) {
+    if (getsize(root) > getsize(node)) {
+        //left
+        if (getleft(root) == lastblk) {
+            setleft(root, node);
+            __insert_balance__(node);
+        } else __insert_node__(getleft(root), node);
+    } else {
+        //right
+        if (getright(root) == lastblk) {
+            setright(root, node);
+            __insert_balance__(node);
+        } else __insert_node__(getright(root), node);
+    }
+}
+
+/*
+ * balance function - only call on new leaf node or color change
+ * input must be always red
+ */
+void __insert_balance__(block_t *node) {
+
+    block_t *parent = getparent(node);
+
+    if (node == getroot()) {
+        SETCOLOR(node, BLACK);
+        return;
+    }
+    if (COLOR(parent) == RED) {
+        block_t *grandparent = getparent(parent);
+        if (getsize(grandparent) <= getsize(parent)
+            && getleft(grandparent) == lastblk) {
+
+            if (getsize(node) < getsize(parent)) {     //  g
+                setright(parent, node);                //     p
+                setleft(parent, lastblk);              //   n
+            }
+            SETCOLOR(parent, BLACK);
+            SETCOLOR(grandparent, RED);
+
+            //counter-clockwise rotate
+            block_t *tmp = getleft(parent);
+            setparent(parent, getparent(grandparent));
+            setleft(parent, grandparent);
+            setright(grandparent, tmp);
+
+        } else if (getsize(parent) < getsize(grandparent)
+                   && getright(grandparent) == lastblk) {
+
+            if (getsize(parent) <= getsize(node)) {      //    g
+                setleft(parent, node);                   // p
+                setright(parent, lastblk);               //   n
+            }
+            SETCOLOR(parent, BLACK);
+            SETCOLOR(grandparent, RED);
+
+            //clockwise rotate
+            block_t *tmp = getright(parent);
+            setparent(parent, getparent(grandparent));
+            setright(parent, grandparent);
+            setleft(grandparent, tmp);
+
+        } else {
+            SETCOLOR(grandparent, RED);
+            SETCOLOR(getleft(grandparent), BLACK);
+            SETCOLOR(getright(grandparent), BLACK);
+            __insert_balance__(grandparent);
+        }
+    }
+}
