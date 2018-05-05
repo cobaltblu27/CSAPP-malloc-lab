@@ -41,30 +41,9 @@ team_t team = {
 /* rounds up to the nearest multiple of ALIGNMENT */
 #define ALIGN(size) (((size) + (ALIGNMENT-1)) & ~0x7)
 
-#define ALLOCATED(p) (*(unsigned int *) (p) & 0x7)
-#define ISFREE(p) (0 == (*(unsigned int *) (p) & 0x7))
-
 #define SIZE_T_SIZE (ALIGN(sizeof(size_t)))
 
-/* returns size of block from block header or footer */
-#define GETSIZE(p) (*(unsigned int *)(p) & ~0x7)
-
-
-/* pointer to next and previous block, 4-byte offset is added to pointer p */
-#define LINKEDPREV(p) ((void *) *(unsigned int *) ((p) + 4))
-#define LINKEDNEXT(p) ((void *) *(unsigned int *) ((p) + 8))
-
-#define SETPREV(p, prev) (*(unsigned int *)((p) + 4) = (unsigned int) (prev))
-#define SETNEXT(p, next) (*(unsigned int *)((p) + 8) = (unsigned int) (next))
-
-/* pointer to adjacent blocks, used for coalescing */
-#define BEFORE(p) ((p) - GETSIZE((p) - 4))
-#define AFTER(p) ((p) + GETSIZE((p)))
-
 /* makes header and footer from pointer, size and allocation bit */
-#define PACK(p, size, allocated) {*(unsigned int *)(p) = (size) | (allocated);\
-                        *(unsigned int*)((p) + (size) - 4) = (size) | (allocated);}
-
 
 /***********************
  * Free block structure
@@ -127,7 +106,7 @@ static block_t *getbefore(block_t *blk);
 
 static int allocated(block_t *blk);
 
-
+static int isfree(block_t *blk);
 /*
  * mm_init - initialize the malloc package.
  */
@@ -162,34 +141,34 @@ int mm_init(void) {
 void *mm_malloc(size_t size) {
     size_t newsize = ALIGN(size + ALIGNMENT);
     size_t oldsize;
-    void *p;
+    block_t *p;
     block_t *next, *prev;
     p = startblk;// points to first header block
     while (1) {
         p = getnext(p);
         if (allocated(p) == 1) {
             //epilogue block, empty allocated
-            void *new = mem_sbrk((int) newsize);
+            block_t *new = mem_sbrk((int) newsize);
             pack(new, newsize, 1);
-            return new + 4;
+            return ptr(new);
         } else if (getsize(p) > newsize)
             break;
     }
     oldsize = getsize(p);
     next = getnext(p);
-    prev = (block_t *) LINKEDPREV(p);
+    prev = getprev(p);
     if (oldsize - newsize < ALIGNMENT * 2) {
         setnext(prev, next);
         setprev(next, prev);
         //extend block with padding to prevent framentation
         pack(p, oldsize, 1);
     } else {
-        PACK(p, newsize, 1);
+        pack(p, newsize, 1);
 
         size_t blksize = oldsize - newsize;
         block_t *after;
         //fragmentation
-        after = getafter((block_t *) p);
+        after = getafter(p);
         pack(after, blksize, 0);
 
         setnext(after, next);
@@ -199,58 +178,58 @@ void *mm_malloc(size_t size) {
     }
 
     //mm_check();
-    return p + 4;
+    return ptr(p);
 }
 
 /*
  * mm_free
  */
 void mm_free(void *ptr) {
-    void *p;//points to header
-    void *before, *after;
-    void *next, *prev;
-    int blksize;
+    block_t *p;//points to header
+    block_t *before, *after;
+    block_t *next, *prev;
+    size_t blksize;
     p = ptr - 4;
-    if (!header_valid(p) || ALLOCATED(p) != 0x1) {
+    if (!header_valid(p) || allocated(p) != 0x1) {
         //compare header and footer, return if invalid
         return;
     }
-    blksize = GETSIZE(p);
+    blksize = getsize(p);
 
-    before = BEFORE(p);
-    after = AFTER(p);
+    before = getbefore(p);
+    after = getafter(p);
 
-    PACK(p, blksize, 0);
+    pack(p, blksize, 0);
 
-    if (ISFREE(before)) {
-        blksize += GETSIZE(before);
-        PACK(before, blksize, 0);
+    if (!allocated(before)) {
+        blksize += getsize(before);
+        pack(before, blksize, 0);
         p = before;
-        if (ISFREE(after) && after < mem_heap_hi()) {
-            next = LINKEDNEXT(after);
-            prev = LINKEDPREV(after);
-            PACK(p, blksize + GETSIZE(after), 0);
-            SETNEXT(prev, next);
-            SETPREV(next, prev);
-            SETNEXT(prev, next);
-            SETPREV(next, prev);
+        if (isfree(after) && after < mem_heap_hi()) {
+            next = getnext(after);
+            prev = getprev(after);
+            pack(p, blksize + getsize(after), 0);
+            setnext(prev, next);
+            setprev(next, prev);
+            setnext(prev, next);
+            setprev(next, prev);
         }
-    } else if (ISFREE(after) && after < mem_heap_hi()) {
-        next = LINKEDNEXT(after);
-        prev = LINKEDPREV(after);
-        PACK(p, blksize + GETSIZE(after), 0);
+    } else if (isfree(after) && after < mem_heap_hi()) {
+        next = getnext(after);
+        prev = getprev(after);
+        pack(p, blksize + getsize(after), 0);
 
-        SETNEXT(p, next);
-        SETPREV(next, p);
-        SETNEXT(prev, p);
-        SETPREV(p, prev);
+        setnext(p, next);
+        setprev(next, p);
+        setnext(prev, p);
+        setprev(p, prev);
     } else {
-        void *first = LINKEDNEXT(startblk);
-        PACK(p, blksize, 0);
-        SETNEXT(p, first);
-        SETPREV(first, p);
-        SETNEXT(startblk, p);
-        SETPREV(p, startblk);
+        block_t *first = getnext(startblk);
+        pack(p, blksize, 0);
+        setnext(p, first);
+        setprev(first, p);
+        setnext(startblk, p);
+        setprev(p, startblk);
     }
     //mm_check();
 }
@@ -298,35 +277,35 @@ void mm_check() {
             Exit(0);
         }
 
-        if (ISFREE(p)) {
+        if (isfree(p)) {
             freeblks++;
             if (verbose)
-                printf("(f,%x) ", GETSIZE(p));
+                printf("(f,%x) ", (unsigned int) getsize(p));
         } else if (verbose)
-            printf("(a,%x) ", GETSIZE(p));
+            printf("(a,%x) ", (unsigned int) getsize(p));
 
-        p = AFTER(p);
+        p = getafter(p);
     }
     if (verbose)
         printf("%p(end)\n", heap_end);
 
-    p = LINKEDNEXT(startblk);
+    p = getnext(startblk);
 
     //checking free blocks link by link
     while (p != lastblk) {
         freelistblks++;
         if (verbose)
-            printf("mm_check: %p %p\n", LINKEDNEXT(p), LINKEDPREV(p));
-        if (ALLOCATED(LINKEDNEXT(p)) || ALLOCATED(LINKEDPREV(p))) {
+            printf("mm_check: %p %p\n", getnext(p), getprev(p));
+        if (allocated(getnext(p)) || allocated(getprev(p))) {
             if (verbose)
-                printf("next: %p, prev: %p\n", LINKEDNEXT(p), LINKEDPREV(p));
-            if (LINKEDPREV(p) != startblk && LINKEDNEXT(p) != lastblk) {
+                printf("next: %p, prev: %p\n", getnext(p), getprev(p));
+            if (getprev(p) != startblk && getnext(p) != lastblk) {
                 if (verbose)
                     printf("linked free block is not actually free\n");
                 Exit(0);
             }
         }
-        p = LINKEDNEXT(p);
+        p = getnext(p);
     }
 
     if (freeblks != freelistblks) {
@@ -341,12 +320,12 @@ void mm_check() {
 
 //returns 1 header p is valid
 static inline int header_valid(void *header) {
-    return !(*(unsigned int *) header - *(unsigned int *) (header + GETSIZE(header) - 4));
+    return !(*(unsigned int *) header - *(unsigned int *) (header + getsize(header) - 4));
 }
 
 void Exit(int st) {
-    printf("\n--Exit summary--\nheap area: %p to %p\n"
-                   "heap size: %x\n", mem_heap_lo(), mem_heap_hi(), (unsigned int) mem_heapsize());
+    printf("\n--Exit summary--\nheap area: %p to %p\nheap size: %x\n"
+            , mem_heap_lo(), mem_heap_hi(), (unsigned int) mem_heapsize());
     mem_deinit();
     exit(st);
 }
@@ -360,11 +339,13 @@ void blkstatus(void *ptr) {
         printf("blkstatus: header invalid, %p\n", ptr);
         return;
     }
-    if (ALLOCATED(ptr))
+    if (allocated(ptr))
         printf("blkstatus: Allocated block %p\n", ptr);
     else
-        printf("blkstatus: free block %p, prev: %p next: %p\n", ptr, LINKEDPREV(ptr), LINKEDNEXT(ptr));
-    printf("size: %x, before: %p after: %p\n", GETSIZE(ptr), BEFORE(ptr), AFTER(ptr));
+        printf("blkstatus: free block %p, prev: %p next: %p\n"
+                , ptr, getprev(ptr), getnext(ptr));
+    printf("size: %x, before: %p after: %p\n"
+            , (unsigned int) getsize(ptr), getbefore(ptr), getafter(ptr));
 }
 
 void pack(block_t *blk, size_t size, int alloc) {
@@ -392,7 +373,7 @@ block_t *getafter(block_t *blk) {
 }
 
 block_t *getprev(block_t *blk) {
-    return (void *) &(blk->payload[0]);
+    return *((void **) blk->payload);
 }
 
 block_t *getnext(block_t *blk) {
@@ -417,4 +398,8 @@ void *ptr(block_t *blk) {
 
 int allocated(block_t *blk) {
     return blk->header & 0x7;
+}
+
+int isfree(block_t *blk) {
+    return 0 == (blk->header & 0x7);
 }
