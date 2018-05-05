@@ -176,7 +176,7 @@ void *mm_malloc(size_t size) {
             break;
     }
     oldsize = getsize(p);
-    next = (block_t *) LINKEDNEXT(p);
+    next = getnext(p);
     prev = (block_t *) LINKEDPREV(p);
     if (oldsize - newsize < ALIGNMENT * 2) {
         setnext(prev, next);
