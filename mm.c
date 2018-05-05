@@ -43,6 +43,13 @@ team_t team = {
 
 #define SIZE_T_SIZE (ALIGN(sizeof(size_t)))
 
+#define ISBLACK(p) (*(unsigned int *)(p) & BLACK)
+
+#define ALC 0
+#define FREE 1
+#define RED 0x0
+#define BLACK 0x2
+
 /* makes header and footer from pointer, size and allocation bit */
 
 /***********************
@@ -71,7 +78,6 @@ team_t team = {
 
 extern int verbose;
 
-static inline int header_valid(void *header);
 
 void mm_check();
 
@@ -88,16 +94,23 @@ typedef struct block {
 static block_t *startblk;
 static block_t *lastblk;
 
+//fill in header and footer
 static void pack(block_t *blk, size_t size, int alloc);
+
+static inline int header_valid(void *header);
 
 static size_t getsize(block_t *blk);
 
+//return aligned pointer from block ptr
 static void *ptr(block_t *blk);
 
-static void setleft(block_t *blk, block_t *ptr);
+//set left node, set to lastblk if none
+static void setleft(block_t *blk, block_t *leftnode);
 
+//set right node, set to lastblk if none
 static void setright(block_t *blk, block_t *ptr);
 
+//set parent node
 static void setparent(block_t *blk, block_t *ptr);
 
 static block_t *getleft(block_t *blk);
@@ -106,15 +119,26 @@ static block_t *getright(block_t *blk);
 
 static block_t *getparent(block_t *blk);
 
+//get adjacent block right after
 static block_t *getafter(block_t *blk);
 
+//get adjacent block right before
 static block_t *getbefore(block_t *blk);
 
+//check if allocated
 static int allocated(block_t *blk);
 
+//check if block is free
 static int isfree(block_t *blk);
 
+//returns root which is connected from static block startblk
 static block_t *getroot();
+
+//finds the best fit free block for given size, returns lastblk if none
+static block_t *bestfit(size_t size);
+
+//remove node
+static void rm_node(block_t *target);
 
 /*
  * mm_init - initialize the malloc package.
@@ -129,17 +153,17 @@ int mm_init(void) {
     //prologue block, consists of header, footer and root pointer
     p = p + 4;
     startblk = p;
-    pack(p, 24, 1);
+    pack(p, ALIGNMENT * 3, ALC);
 
     p = getafter(p);
 
     //epilogue block, only consists of header and footer
     //epilogue block size is 0
     lastblk = p;
-    pack(p, 24, 1);
+    pack(lastblk, ALIGNMENT * 6, ALC);
     setright(startblk, lastblk);
-    setleft(lastblk, startblk);
-    setright(p, NULL);
+    setleft(lastblk, NULL);
+    setright(lastblk, NULL);
     return 0;
 }
 
@@ -151,42 +175,35 @@ void *mm_malloc(size_t size) {
     size_t newsize = ALIGN(size + ALIGNMENT);
     size_t oldsize;
     block_t *p;
-    block_t *next, *prev;
-    p = startblk;// points to first header block
-    while (1) {
-        p = getright(p);
-        if (allocated(p) == 1) {
-            //epilogue block, empty allocated
-            block_t *new = mem_sbrk((int) newsize);
-            pack(new, newsize, 1);
-            return ptr(new);
-        } else if (getsize(p) > newsize)
-            break;
+    if (newsize < 3 * ALIGNMENT)
+        newsize = 3 * ALIGNMENT;
+    p = bestfit(newsize);
+    if (p == lastblk) {
+        block_t *new = mem_sbrk((int) newsize);
+        pack(new, newsize, ALC);
+        return ptr(new);
     }
+
     oldsize = getsize(p);
-    next = getright(p);
-    prev = getleft(p);
-    if (oldsize - newsize < ALIGNMENT * 2) {
-        setright(prev, next);
-        setleft(next, prev);
-        //extend block with padding to prevent framentation
-        pack(p, oldsize, 1);
+    if (oldsize - newsize < ALIGNMENT * 3) {
+        rm_node(p);
+        pack(p, oldsize, ALC);
     } else {
-        pack(p, newsize, 1);
-
-        size_t blksize = oldsize - newsize;
         block_t *after;
-        //fragmentation
+        block_t *left, *right, *parent;
+
+        left = getleft(p);
+        right = getright(p);
+        parent = getparent(p);
+
+        pack(p, newsize, ALC);
+
         after = getafter(p);
-        pack(after, blksize, 0);
-
-        setright(after, next);
-        setleft(after, prev);
-        setright(prev, after);
-        setleft(next, after);
+        setleft(after, left);
+        setright(after, right);
+        setparent(after, parent);
     }
-
-    //mm_check();
+    mm_check();
     return ptr(p);
 }
 
@@ -208,17 +225,17 @@ void mm_free(void *ptr) {
     before = getbefore(p);
     after = getafter(p);
 
-    pack(p, blksize, 0);
+    pack(p, blksize, FREE);
 
     if (!allocated(before)) {
         blksize += getsize(before);
-        pack(before, blksize, 0);
+        pack(before, blksize, FREE);
         p = before;
         if (isfree(after)
             && (unsigned int) after < (unsigned int) mem_heap_hi()) {
             next = getright(after);
             prev = getleft(after);
-            pack(p, blksize + getsize(after), 0);
+            pack(p, blksize + getsize(after), FREE);
             setright(prev, next);
             setleft(next, prev);
             setright(prev, next);
@@ -228,7 +245,7 @@ void mm_free(void *ptr) {
                && (unsigned int) after < (unsigned int) mem_heap_hi()) {
         next = getright(after);
         prev = getleft(after);
-        pack(p, blksize + getsize(after), 0);
+        pack(p, blksize + getsize(after), FREE);
 
         setright(p, next);
         setleft(next, p);
@@ -236,7 +253,7 @@ void mm_free(void *ptr) {
         setleft(p, prev);
     } else {
         block_t *first = getright(startblk);
-        pack(p, blksize, 0);
+        pack(p, blksize, FREE);
         setright(p, first);
         setleft(first, p);
         setright(startblk, p);
@@ -342,7 +359,7 @@ void Exit(int st) {
 }
 
 void blkstatus(void *ptr) {
-    if (ptr < mem_heap_lo() || ptr > mem_heap_hi() || (long) (ptr + 4) & 0x7) {
+    if (ptr < mem_heap_lo() || ptr > mem_heap_hi() || !(long) (ptr + 4) & 0x7) {
         printf("blkstatus: pointer invalid, %p\n", ptr);
         return;
     }
@@ -391,6 +408,7 @@ block_t *getright(block_t *blk) {
     payload++;
     return *payload;
 }
+
 block_t *getparent(block_t *blk) {
 //TODO need to check if valid(it will be correct tho)
     void **payload = (void **) blk->left;
@@ -398,15 +416,19 @@ block_t *getparent(block_t *blk) {
     return *payload;
 }
 
-void setleft(block_t *blk, block_t *ptr) {
-    block_t **prev = (block_t **) blk->left;
-    *prev = ptr;
+void setleft(block_t *blk, block_t *leftnode) {
+    block_t **leftptr = (block_t **) blk->left;
+    *leftptr = leftnode;
+
+    void **left_parent = (void **) leftnode->left;
+    left_parent += 2;
+    *left_parent = blk;
 }
 
 void setright(block_t *blk, block_t *ptr) {
-    void *payload = blk->left;
-    payload = payload + sizeof(void *);
-    *(unsigned int *) payload = (unsigned int) ptr;
+    void **payload = (void *) blk->left;
+    payload++;
+    *payload = ptr;
 }
 
 void setparent(block_t *blk, block_t *ptr) {
@@ -422,14 +444,40 @@ void *ptr(block_t *blk) {
 }
 
 int allocated(block_t *blk) {
-    return blk->header & 0x7;
+    return 0 == (blk->header & 0x7);
 }
 
 int isfree(block_t *blk) {
-    return 0 == (blk->header & 0x7);
+    return blk->header & 0x7;
 }
 
 block_t *getroot() {
     return getright(startblk);
 }
+
+block_t *tree_search(block_t *node, size_t size) {
+    size_t blksize = getsize(node);
+    if (node == lastblk)
+        return node;
+    if (blksize < size) {
+        return tree_search(getright(node), size);
+    } else {
+        struct block *left_search;
+        left_search = tree_search(getleft(node), size);
+        if (left_search == lastblk)
+            return node;
+        else return left_search;
+    }
+}
+
+block_t *bestfit(size_t size) {
+    block_t *blk = getroot();
+    return tree_search(blk, size);
+}
+
+void rm_node(block_t *target) {
+
+}
+
+
 
