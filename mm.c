@@ -440,7 +440,7 @@ void setparent(block_t *blk, block_t *parentnode) {
     *parentptr = parentnode;
 
     void **targetptr = (void **) parentnode->left;
-    if (getsize(blk) >= getsize(parentnode))
+    if (getsize(blk) >= getsize(parentnode) || parentnode == startblk)
         targetptr++; //blk size is greater of equal to parent, blk goes right
     *targetptr = blk;
 }
@@ -470,6 +470,10 @@ static void __insert_node__(block_t *root, block_t *node);
 
 static void __insert_balance__(block_t *node);
 
+static block_t *__find_min__(block_t *node);
+
+static void __double_black__(block_t *node);
+
 /*****************************************************************/
 
 
@@ -494,7 +498,46 @@ void insert_node(block_t *node) {
 
 
 void rm_node(block_t *target) {
-    //TODO
+
+    block_t *parent = getparent(target);
+    if (getright(target) != lastblk) {
+        block_t *rm = __find_min__(getright(target));
+        if (COLOR(rm) == RED) {
+            setleft(rm, getleft(target));
+            setright(rm, getright(target));
+            setparent(rm, parent);
+            SETCOLOR(rm, COLOR(target));
+        } else {
+            //TODO double-black
+        }
+
+    } else {
+        if (COLOR(target) == RED) {
+            if (getleft(target) != lastblk) {
+                setparent(getleft(target), parent);
+            } else {
+                if (getsize(target) < getsize(parent))
+                    setleft(parent, lastblk);
+                else
+                    setright(parent, lastblk);
+            }
+
+        } else {
+            if (getleft(target) != lastblk) {
+                block_t *left = getleft(target);
+                setparent(left, parent);
+                if (COLOR(left) == RED)
+                    SETCOLOR(left, BLACK);
+                else {
+                    SETCOLOR(left, BLACK);
+                    __double_black__(left);
+                }
+            } else {
+                //TODO target is leaf node
+            }
+        }
+    }
+
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -584,4 +627,16 @@ void __insert_balance__(block_t *node) {
             __insert_balance__(grandparent);
         }
     }
+}
+
+block_t *__find_min__(block_t *node) {
+    block_t *left = node;
+    while (getleft(left) != lastblk)
+        left = getleft(left);
+    return left;
+}
+
+
+void __double_black__(block_t *node) {
+
 }
