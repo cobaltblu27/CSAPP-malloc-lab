@@ -107,53 +107,23 @@ typedef struct block {
     char payload[0];
 } block_t;
 
-static void pack(block_t *blk, size_t size, int alloc) {
-    void *ptr = &(blk->header);
-    blk->header = (unsigned int) size | alloc;
-    ptr = ptr + size - sizeof(ptr);
-    *(unsigned int *) ptr = (unsigned int) size | alloc;
-}
+static void pack(block_t *blk, size_t size, int alloc);
 
-static size_t getsize(block_t *blk) {
-    return blk->header | ~0x7;
-}
+static size_t getsize(block_t *blk);
 
-static void *ptr(block_t *blk) {
-    return blk->payload;
-}
+static void *ptr(block_t *blk);
 
-static void setprev(block_t *blk, void *ptr) {
-    *(unsigned int*) (blk->payload) = (unsigned int) ptr;
-}
+static void setprev(block_t *blk, block_t *ptr);
 
-static void setnext(block_t *blk, void *ptr) {
-    void *payload = blk->payload;
-    payload = payload + sizeof(void *);
-    *(unsigned int *) payload = (unsigned int) ptr;
-}
+static void setnext(block_t *blk, block_t *ptr);
 
-static block_t *getnext(block_t *blk) {
-    void *payload = blk->payload;
-    payload = payload + sizeof(void *);
-    return payload;
-}
+static block_t *getnext(block_t *blk);
 
-static block_t *getprev(block_t *blk) {
-    return (void *) blk->payload;
-}
+static block_t *getprev(block_t *blk);
 
-static block_t *after(block_t *blk) {
-    void *ptr = blk;
-    ptr = ptr + getsize(blk);
-    return ptr;
-}
+static block_t *getafter(block_t *blk);
 
-static block_t *before(block_t *blk) {
-    void *ptr = blk;
-    void *footer = ptr - sizeof(unsigned int);
-    return ptr - (*(unsigned int *) footer | ~0x7);
-}
-
+static block_t *getbefore(block_t *blk);
 
 
 /*
@@ -171,15 +141,15 @@ int mm_init(void) {
     startblk = p;
     pack(p, 16, 1);
 
-    p = AFTER(p);
+    p = getafter(p);
 
     //epilogue block, only consists of header and footer
     //epilogue block size is 0
     lastblk = p;
-    PACK(p, 16, 1);
-    SETNEXT(startblk, lastblk);
-    SETPREV(lastblk, startblk);
-    SETNEXT(p, NULL);
+    pack(p, 16, 1);
+    setnext(startblk, lastblk);
+    setprev(lastblk, startblk);
+    setnext(p, NULL);
     return 0;
 }
 
@@ -188,42 +158,43 @@ int mm_init(void) {
  */
 
 void *mm_malloc(size_t size) {
-    int newsize = (int) ALIGN(size + ALIGNMENT);
-    int oldsize;
+    size_t newsize = ALIGN(size + ALIGNMENT);
+    size_t oldsize;
     void *p;
-    void *next;
-    void *prev;
+    block_t *next, *prev;
     p = startblk;// points to first header block
     while (1) {
         p = LINKEDNEXT(p);
         if (ALLOCATED(p) == 1) {
             //epilogue block, empty allocated
-            void *new = mem_sbrk(newsize);
+            void *new = mem_sbrk((int) newsize);
             PACK(new, newsize, 1);
             return new + 4;
         } else if (GETSIZE(p) > newsize)
             break;
     }
     oldsize = GETSIZE(p);
-    next = LINKEDNEXT(p);
-    prev = LINKEDPREV(p);
+    next = (block_t *) LINKEDNEXT(p);
+    prev = (block_t *) LINKEDPREV(p);
     if (oldsize - newsize < ALIGNMENT * 2) {
-        SETNEXT(prev, next);
-        SETPREV(next, prev);
+        setnext(prev, next);
+        setprev(next, prev);
         //extend block with padding to prevent framentation
-        PACK(p, oldsize, 1);
+        pack(p, oldsize, 1);
     } else {
         PACK(p, newsize, 1);
 
-        int blksize = oldsize - newsize;
-        void *after;
+        size_t blksize = oldsize - newsize;
+        block_t *after;
         //fragmentation
+//        after = getafter((block_t *) p);
         after = AFTER(p);
-        PACK(after, blksize, 0);
-        SETNEXT(after, next);
-        SETPREV(after, prev);
-        SETNEXT(prev, after);
-        SETPREV(next, after);
+        pack(after, blksize, 0);
+
+        setnext(after, next);
+        setprev(after, prev);
+        setnext(prev, after);
+        setprev(next, after);
     }
 
     //mm_check();
@@ -393,4 +364,52 @@ void blkstatus(void *ptr) {
     else
         printf("blkstatus: free block %p, prev: %p next: %p\n", ptr, LINKEDPREV(ptr), LINKEDNEXT(ptr));
     printf("size: %x, before: %p after: %p\n", GETSIZE(ptr), BEFORE(ptr), AFTER(ptr));
+}
+
+void pack(block_t *blk, size_t size, int alloc) {
+    void *ptr = &(blk->header);
+    blk->header = (unsigned int) size | alloc;
+    ptr = ptr + size - sizeof(ptr);
+    *(unsigned int *) ptr = (unsigned int) size | alloc;
+}
+
+size_t getsize(block_t *blk) {
+    return blk->header & ~0x7;
+}
+
+block_t *getbefore(block_t *blk) {
+    void *ptr = blk;
+    void *footer = ptr - 4;
+    ptr = ptr - (*(unsigned int *) footer | ~0x7);
+    return ptr;
+}
+
+block_t *getafter(block_t *blk) {
+    void *ptr = blk;
+    ptr = ptr + getsize(blk);
+    return ptr;
+}
+
+block_t *getprev(block_t *blk) {
+    return (void *) &(blk->payload[0]);
+}
+
+block_t *getnext(block_t *blk) {
+    void *payload = blk->payload;
+    payload = payload + sizeof(void *);
+    return payload;
+}
+
+void setnext(block_t *blk, block_t *ptr) {
+    void *payload = blk->payload;
+    payload = payload + sizeof(void *);
+    *(unsigned int *) payload = (unsigned int) ptr;
+}
+
+void setprev(block_t *blk, block_t *ptr) {
+    *(unsigned int *) (blk->payload) = (unsigned int) ptr;
+}
+
+void *ptr(block_t *blk) {
+    return blk->payload;
 }
