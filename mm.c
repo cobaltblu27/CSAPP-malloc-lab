@@ -108,10 +108,10 @@ static void *ptr(block_t *blk);
 static void setleft(block_t *blk, block_t *leftnode);
 
 //set right node, set to lastblk if none
-static void setright(block_t *blk, block_t *ptr);
+static void setright(block_t *blk, block_t *rightnode);
 
 //set parent node
-static void setparent(block_t *blk, block_t *ptr);
+static void setparent(block_t *blk, block_t *parentnode);
 
 static block_t *getleft(block_t *blk);
 
@@ -209,6 +209,7 @@ void *mm_malloc(size_t size) {
 
 /*
  * mm_free
+ * using red-black tree, node with same size will GO RIGHT
  */
 void mm_free(void *ptr) {
     block_t *p;//points to header
@@ -417,7 +418,7 @@ block_t *getparent(block_t *blk) {
 }
 
 void setleft(block_t *blk, block_t *leftnode) {
-    block_t **leftptr = (block_t **) blk->left;
+    void **leftptr = (void **) blk->left;
     *leftptr = leftnode;
 
     void **left_parent = (void **) leftnode->left;
@@ -425,17 +426,26 @@ void setleft(block_t *blk, block_t *leftnode) {
     *left_parent = blk;
 }
 
-void setright(block_t *blk, block_t *ptr) {
-    void **payload = (void *) blk->left;
-    payload++;
-    *payload = ptr;
+void setright(block_t *blk, block_t *rightnode) {
+    void **rightptr = (void *) blk->left;
+    rightptr++;
+    *rightptr = rightnode;
+
+    void **right_parent = (void **) rightnode->left;
+    right_parent += 2;
+    *right_parent = blk;
 }
 
-void setparent(block_t *blk, block_t *ptr) {
+void setparent(block_t *blk, block_t *parentnode) {
 //TODO need to check if valid(it will be correct tho)
-    void *payload = blk->left;
-    payload = payload + 2 * sizeof(void *);
-    *(unsigned int *) payload = (unsigned int) ptr;
+    void **parentptr = (void **) blk->left;
+    parentptr += 2;
+    *parentptr = parentnode;
+
+    void **targetptr = (void **) parentnode->left;
+    if(getsize(blk) >= getsize(parentnode))
+        targetptr++; //blk size is greater of equal to parent, blk goes right
+    *targetptr = blk;
 }
 
 
@@ -476,7 +486,7 @@ block_t *bestfit(size_t size) {
 }
 
 void rm_node(block_t *target) {
-
+    //TODO
 }
 
 
