@@ -43,7 +43,9 @@ team_t team = {
 
 #define SIZE_T_SIZE (ALIGN(sizeof(size_t)))
 
-#define ISBLACK(p) (*(unsigned int *)(p) & BLACK)
+#define COLOR(p) (*(unsigned int *)(p) & 0x2)
+
+#define SETCOLOR(p, color) (*(unsigned int*)(p) = *(unsigned int*)(p) | (color))
 
 #define ALC 0
 #define FREE 1
@@ -140,6 +142,7 @@ static block_t *bestfit(size_t size);
 //remove node
 static void rm_node(block_t *target);
 
+static void insert_node(block_t *node);
 /*
  * mm_init - initialize the malloc package.
  */
@@ -160,10 +163,10 @@ int mm_init(void) {
     //epilogue block, only consists of header and footer
     //epilogue block size is 0
     lastblk = p;
-    pack(lastblk, ALIGNMENT * 6, ALC);
+    pack(lastblk, ALIGNMENT * 3, ALC | BLACK);
     setright(startblk, lastblk);
-    setleft(lastblk, NULL);
-    setright(lastblk, NULL);
+    setleft(lastblk, startblk);
+    setright(lastblk, startblk);
     return 0;
 }
 
@@ -214,10 +217,9 @@ void *mm_malloc(size_t size) {
 void mm_free(void *ptr) {
     block_t *p;//points to header
     block_t *before, *after;
-    block_t *next, *prev;
     size_t blksize;
-    p = ptr - 4;
-    if (!header_valid(p) || allocated(p) != 0x1) {
+    p = ptr - sizeof(unsigned int);
+    if (!header_valid(p) || !allocated(p)) {
         //compare header and footer, return if invalid
         return;
     }
@@ -226,41 +228,33 @@ void mm_free(void *ptr) {
     before = getbefore(p);
     after = getafter(p);
 
-    pack(p, blksize, FREE);
 
-    if (!allocated(before)) {
+    if (isfree(before)) {
         blksize += getsize(before);
-        pack(before, blksize, FREE);
+        pack(before, blksize, FREE | COLOR(before));
         p = before;
         if (isfree(after)
             && (unsigned int) after < (unsigned int) mem_heap_hi()) {
-            next = getright(after);
-            prev = getleft(after);
-            pack(p, blksize + getsize(after), FREE);
-            setright(prev, next);
-            setleft(next, prev);
-            setright(prev, next);
-            setleft(next, prev);
+            pack(p, blksize + getsize(after), FREE | COLOR(p));
+            rm_node(after);
         }
     } else if (isfree(after)
                && (unsigned int) after < (unsigned int) mem_heap_hi()) {
-        next = getright(after);
-        prev = getleft(after);
-        pack(p, blksize + getsize(after), FREE);
+        block_t *left, *right, *parent;
+        left = getleft(after);
+        right = getright(after);
+        parent = getparent(after);
 
-        setright(p, next);
-        setleft(next, p);
-        setright(prev, p);
-        setleft(p, prev);
+        pack(p, blksize + getsize(after), FREE | COLOR(after));
+
+        setleft(p, left);
+        setright(p, right);
+        setparent(p, parent);
     } else {
-        block_t *first = getright(startblk);
         pack(p, blksize, FREE);
-        setright(p, first);
-        setleft(first, p);
-        setright(startblk, p);
-        setleft(p, startblk);
+        insert_node(p);
     }
-    //mm_check();
+    mm_check();
 }
 
 /*
@@ -318,30 +312,30 @@ void mm_check() {
     if (verbose)
         printf("%p(end)\n", heap_end);
 
-    p = getright(startblk);
-
-    //checking free blocks link by link
-    while (p != lastblk) {
-        freelistblks++;
-        if (verbose)
-            printf("mm_check: %p %p\n", getright(p), getleft(p));
-        if (allocated(getright(p)) || allocated(getleft(p))) {
-            if (verbose)
-                printf("next: %p, prev: %p\n", getright(p), getleft(p));
-            if (getleft(p) != startblk && getright(p) != lastblk) {
-                if (verbose)
-                    printf("linked free block is not actually free\n");
-                Exit(0);
-            }
-        }
-        p = getright(p);
-    }
-
-    if (freeblks != freelistblks) {
-        if (verbose)
-            printf("free blocks: %d, free blocks in list: %d\n", freeblks, freelistblks);
-        Exit(0);
-    }
+//    p = getright(startblk);
+//
+//    //checking free blocks link by link
+//    while (p != lastblk) {
+//        freelistblks++;
+//        if (verbose)
+//            printf("mm_check: %p %p\n", getright(p), getleft(p));
+//        if (allocated(getright(p)) || allocated(getleft(p))) {
+//            if (verbose)
+//                printf("next: %p, prev: %p\n", getright(p), getleft(p));
+//            if (getleft(p) != startblk && getright(p) != lastblk) {
+//                if (verbose)
+//                    printf("linked free block is not actually free\n");
+//                Exit(0);
+//            }
+//        }
+//        p = getright(p);
+//    }
+//
+//    if (freeblks != freelistblks) {
+//        if (verbose)
+//            printf("free blocks: %d, free blocks in list: %d\n", freeblks, freelistblks);
+//        Exit(0);
+//    }
     if (verbose)
         printf("mm_check: exiting\n");
 
@@ -360,6 +354,7 @@ void Exit(int st) {
 }
 
 void blkstatus(void *ptr) {
+    printf("\n");
     if (ptr < mem_heap_lo() || ptr > mem_heap_hi() || !(long) (ptr + 4) & 0x7) {
         printf("blkstatus: pointer invalid, %p\n", ptr);
         return;
@@ -410,8 +405,8 @@ block_t *getright(block_t *blk) {
     return *payload;
 }
 
+//getparent of lastblk is undefined behavior
 block_t *getparent(block_t *blk) {
-//TODO need to check if valid(it will be correct tho)
     void **payload = (void **) blk->left;
     payload += 2;
     return *payload;
@@ -437,7 +432,6 @@ void setright(block_t *blk, block_t *rightnode) {
 }
 
 void setparent(block_t *blk, block_t *parentnode) {
-//TODO need to check if valid(it will be correct tho)
     void **parentptr = (void **) blk->left;
     parentptr += 2;
     *parentptr = parentnode;
@@ -465,15 +459,15 @@ block_t *getroot() {
     return getright(startblk);
 }
 
-block_t *tree_search(block_t *node, size_t size) {
+static block_t *__tree_search__(block_t *node, size_t size) {
     size_t blksize = getsize(node);
     if (node == lastblk)
         return node;
     if (blksize < size) {
-        return tree_search(getright(node), size);
+        return __tree_search__(getright(node), size);
     } else {
         struct block *left_search;
-        left_search = tree_search(getleft(node), size);
+        left_search = __tree_search__(getleft(node), size);
         if (left_search == lastblk)
             return node;
         else return left_search;
@@ -482,12 +476,50 @@ block_t *tree_search(block_t *node, size_t size) {
 
 block_t *bestfit(size_t size) {
     block_t *blk = getroot();
-    return tree_search(blk, size);
+    return __tree_search__(blk, size);
 }
+
+static void __insert_balance__(block_t *node){
+    
+}
+
+static void __insert_node__(block_t *root, block_t *node){
+    if(getsize(root) > getsize(node)){
+        //left
+        if(getleft(root) == lastblk){
+            setleft(root, node);
+            setleft(node, lastblk);
+            setright(node, lastblk);
+            __insert_balance__(node);
+        }
+        else __insert_node__(getleft(root), node);
+    } else{
+        //right
+        if(getright(root) == lastblk){
+            setright(root, node);
+            setleft(node, lastblk);
+            setright(node, lastblk);
+            __insert_balance__(node);
+        }
+        else __insert_node__(getright(root), node);
+    }
+}
+
+void insert_node(block_t *node) {
+    block_t *root = getroot();
+    if(root == lastblk){
+        //tree empty, make node root
+        setright(startblk, node);
+        setright(node, lastblk);
+        setleft(node, lastblk);
+        SETCOLOR(node, BLACK);
+        return;
+    }
+    __insert_node__(root, node);
+}
+
 
 void rm_node(block_t *target) {
     //TODO
 }
-
-
 
