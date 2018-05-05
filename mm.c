@@ -1,6 +1,6 @@
 /*
  * mm-naive.c - The fastest, least memory-efficient malloc package.
- * 
+ *
  * In this naive approach, a block is allocated by simply incrementing
  * the brk pointer.  A block is pure payload. There are no headers or
  * footers.  Blocks are never coalesced or reused. Realloc is
@@ -125,6 +125,8 @@ static block_t *getafter(block_t *blk);
 
 static block_t *getbefore(block_t *blk);
 
+static int allocated(block_t *blk);
+
 
 /*
  * mm_init - initialize the malloc package.
@@ -153,7 +155,7 @@ int mm_init(void) {
     return 0;
 }
 
-/* 
+/*
  * mm_malloc
  */
 
@@ -164,16 +166,16 @@ void *mm_malloc(size_t size) {
     block_t *next, *prev;
     p = startblk;// points to first header block
     while (1) {
-        p = LINKEDNEXT(p);
-        if (ALLOCATED(p) == 1) {
+        p = getnext(p);
+        if (allocated(p) == 1) {
             //epilogue block, empty allocated
             void *new = mem_sbrk((int) newsize);
-            PACK(new, newsize, 1);
+            pack(new, newsize, 1);
             return new + 4;
-        } else if (GETSIZE(p) > newsize)
+        } else if (getsize(p) > newsize)
             break;
     }
-    oldsize = GETSIZE(p);
+    oldsize = getsize(p);
     next = (block_t *) LINKEDNEXT(p);
     prev = (block_t *) LINKEDPREV(p);
     if (oldsize - newsize < ALIGNMENT * 2) {
@@ -187,8 +189,7 @@ void *mm_malloc(size_t size) {
         size_t blksize = oldsize - newsize;
         block_t *after;
         //fragmentation
-//        after = getafter((block_t *) p);
-        after = AFTER(p);
+        after = getafter((block_t *) p);
         pack(after, blksize, 0);
 
         setnext(after, next);
@@ -380,7 +381,7 @@ size_t getsize(block_t *blk) {
 block_t *getbefore(block_t *blk) {
     void *ptr = blk;
     void *footer = ptr - 4;
-    ptr = ptr - (*(unsigned int *) footer | ~0x7);
+    ptr = ptr - (*(unsigned int *) footer & ~0x7);
     return ptr;
 }
 
@@ -395,9 +396,9 @@ block_t *getprev(block_t *blk) {
 }
 
 block_t *getnext(block_t *blk) {
-    void *payload = blk->payload;
-    payload = payload + sizeof(void *);
-    return payload;
+    void **payload = (void **) blk->payload;
+    payload++;
+    return *payload;
 }
 
 void setnext(block_t *blk, block_t *ptr) {
@@ -412,4 +413,8 @@ void setprev(block_t *blk, block_t *ptr) {
 
 void *ptr(block_t *blk) {
     return blk->payload;
+}
+
+int allocated(block_t *blk) {
+    return blk->header & 0x7;
 }
