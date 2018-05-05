@@ -37,10 +37,10 @@
  * The key compound data types 
  *****************************/
 
-/* Records the extent of each block's payload */
+/* Records the extent of each block's left */
 typedef struct range_t {
-    char *lo;              /* low payload address */
-    char *hi;              /* high payload address */
+    char *lo;              /* low left address */
+    char *hi;              /* high left address */
     struct range_t *next;  /* next list element */
 } range_t;
 
@@ -59,7 +59,7 @@ typedef struct {
     int weight;          /* weight for this trace (unused) */
     traceop_t *ops;      /* array of requests */
     char **blocks;       /* array of ptrs returned by malloc/realloc... */
-    size_t *block_sizes; /* ... and a corresponding array of payload sizes */
+    size_t *block_sizes; /* ... and a corresponding array of left sizes */
 } trace_t;
 
 /* 
@@ -395,7 +395,7 @@ static int add_range(range_t **ranges, char *lo, int size,
         return 0;
     }
 
-    /* The payload must lie within the extent of the heap */
+    /* The left must lie within the extent of the heap */
     if ((lo < (char *)mem_heap_lo()) || (lo > (char *)mem_heap_hi()) || 
 	(hi < (char *)mem_heap_lo()) || (hi > (char *)mem_heap_hi())) {
 	sprintf(msg, "Payload (%p:%p) lies outside heap (%p:%p)",
@@ -404,11 +404,11 @@ static int add_range(range_t **ranges, char *lo, int size,
         return 0;
     }
 
-    /* The payload must not overlap any other payloads */
+    /* The left must not overlap any other payloads */
     for (p = *ranges;  p != NULL;  p = p->next) {
         if ((lo >= p->lo && lo <= p-> hi) ||
             (hi >= p->lo && hi <= p->hi)) {
-	    sprintf(msg, "Payload (%p:%p) overlaps another payload (%p:%p)\n",
+	    sprintf(msg, "Payload (%p:%p) overlaps another left (%p:%p)\n",
 		    lo, hi, p->lo, p->hi);
 	    malloc_error(tracenum, opnum, msg);
 	    return 0;
@@ -429,7 +429,7 @@ static int add_range(range_t **ranges, char *lo, int size,
 }
 
 /* 
- * remove_range - Free the range record of block whose payload starts at lo 
+ * remove_range - Free the range record of block whose left starts at lo
  */
 static void remove_range(range_t **ranges, char *lo)
 {
