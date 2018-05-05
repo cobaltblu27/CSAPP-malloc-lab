@@ -107,6 +107,7 @@ static block_t *getbefore(block_t *blk);
 static int allocated(block_t *blk);
 
 static int isfree(block_t *blk);
+
 /*
  * mm_init - initialize the malloc package.
  */
@@ -205,7 +206,8 @@ void mm_free(void *ptr) {
         blksize += getsize(before);
         pack(before, blksize, 0);
         p = before;
-        if (isfree(after) && after < mem_heap_hi()) {
+        if (isfree(after)
+            && (unsigned int) after < (unsigned int) mem_heap_hi()) {
             next = getnext(after);
             prev = getprev(after);
             pack(p, blksize + getsize(after), 0);
@@ -214,7 +216,8 @@ void mm_free(void *ptr) {
             setnext(prev, next);
             setprev(next, prev);
         }
-    } else if (isfree(after) && after < mem_heap_hi()) {
+    } else if (isfree(after)
+               && (unsigned int) after < (unsigned int) mem_heap_hi()) {
         next = getnext(after);
         prev = getprev(after);
         pack(p, blksize + getsize(after), 0);
@@ -324,8 +327,8 @@ static inline int header_valid(void *header) {
 }
 
 void Exit(int st) {
-    printf("\n--Exit summary--\nheap area: %p to %p\nheap size: %x\n"
-            , mem_heap_lo(), mem_heap_hi(), (unsigned int) mem_heapsize());
+    printf("\n--Exit summary--\nheap area: %p to %p\nheap size: %x\n", mem_heap_lo(), mem_heap_hi(),
+           (unsigned int) mem_heapsize());
     mem_deinit();
     exit(st);
 }
@@ -342,10 +345,8 @@ void blkstatus(void *ptr) {
     if (allocated(ptr))
         printf("blkstatus: Allocated block %p\n", ptr);
     else
-        printf("blkstatus: free block %p, prev: %p next: %p\n"
-                , ptr, getprev(ptr), getnext(ptr));
-    printf("size: %x, before: %p after: %p\n"
-            , (unsigned int) getsize(ptr), getbefore(ptr), getafter(ptr));
+        printf("blkstatus: free block %p, prev: %p next: %p\n", ptr, getprev(ptr), getnext(ptr));
+    printf("size: %x, before: %p after: %p\n", (unsigned int) getsize(ptr), getbefore(ptr), getafter(ptr));
 }
 
 void pack(block_t *blk, size_t size, int alloc) {
@@ -373,7 +374,8 @@ block_t *getafter(block_t *blk) {
 }
 
 block_t *getprev(block_t *blk) {
-    return *((void **) blk->payload);
+    void **ptr = (void **) blk->payload;
+    return *ptr;
 }
 
 block_t *getnext(block_t *blk) {
@@ -389,7 +391,8 @@ void setnext(block_t *blk, block_t *ptr) {
 }
 
 void setprev(block_t *blk, block_t *ptr) {
-    *(unsigned int *) (blk->payload) = (unsigned int) ptr;
+    block_t **prev = (block_t **) blk->payload;
+    *prev = ptr;
 }
 
 void *ptr(block_t *blk) {
