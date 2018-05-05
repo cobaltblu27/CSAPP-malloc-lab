@@ -102,9 +102,65 @@ void Exit(int st);
 
 void blkstatus(void *ptr);
 
+typedef struct block {
+    unsigned int header;
+    char payload[0];
+} block_t;
+
+static void pack(block_t *blk, size_t size, int alloc) {
+    void *ptr = &(blk->header);
+    blk->header = (unsigned int) size | alloc;
+    ptr = ptr + size - sizeof(ptr);
+    *(unsigned int *) ptr = (unsigned int) size | alloc;
+}
+
+static size_t getsize(block_t *blk) {
+    return blk->header | ~0x7;
+}
+
+static void *ptr(block_t *blk) {
+    return blk->payload;
+}
+
+static void setprev(block_t *blk, void *ptr) {
+    *(unsigned int*) (blk->payload) = (unsigned int) ptr;
+}
+
+static void setnext(block_t *blk, void *ptr) {
+    void *payload = blk->payload;
+    payload = payload + sizeof(void *);
+    *(unsigned int *) payload = (unsigned int) ptr;
+}
+
+static block_t *getnext(block_t *blk) {
+    void *payload = blk->payload;
+    payload = payload + sizeof(void *);
+    return payload;
+}
+
+static block_t *getprev(block_t *blk) {
+    return (void *) blk->payload;
+}
+
+static block_t *after(block_t *blk) {
+    void *ptr = blk;
+    ptr = ptr + getsize(blk);
+    return ptr;
+}
+
+static block_t *before(block_t *blk) {
+    void *ptr = blk;
+    void *footer = ptr - sizeof(unsigned int);
+    return ptr - (*(unsigned int *) footer | ~0x7);
+}
+
+
+
 /*
  * mm_init - initialize the malloc package.
  */
+
+
 int mm_init(void) {
     void *p = mem_sbrk(ALIGNMENT * 4 + 4);
     if (p == (void *) -1)
@@ -113,7 +169,8 @@ int mm_init(void) {
     //prologue block, consists of header, footer and root pointer
     p = p + 4;
     startblk = p;
-    PACK(p, 16, 1);
+    pack(p, 16, 1);
+
     p = AFTER(p);
 
     //epilogue block, only consists of header and footer
