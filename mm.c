@@ -43,7 +43,7 @@ team_t team = {
 
 #define SIZE_T_SIZE (ALIGN(sizeof(size_t)))
 
-#define COLOR(p) (*(unsigned int *)(p) & 0x2)
+#define COLOR(p) (*(unsigned int *)(p) & 0x6)
 
 #define SETCOLOR(p, color) (*(unsigned int*)(p) = *(unsigned int*)(p) | (color))
 
@@ -89,6 +89,9 @@ void blkstatus(void *ptr);
 
 typedef struct block {
     unsigned int header;
+
+//TODO make it struct block *left;
+
     unsigned int left[0];
     unsigned int right[0];
 } block_t;
@@ -236,8 +239,8 @@ void mm_free(void *ptr) {
         p = before;
         if (isfree(after)
             && (unsigned int) after < (unsigned int) mem_heap_hi()) {
-            pack(p, blksize + getsize(after), FREE | COLOR(p));
             rm_node(after);
+            pack(p, blksize + getsize(after), FREE | COLOR(p));
         }
     } else if (isfree(after)
                && (unsigned int) after < (unsigned int) mem_heap_hi()) {
@@ -472,6 +475,8 @@ static void __insert_balance__(block_t *node);
 
 static block_t *__find_min__(block_t *node);
 
+static void __rm_node__(block_t *node);
+
 static void __double_black__(block_t *node);
 
 static void __left_rotate__(block_t *node);
@@ -502,31 +507,23 @@ void insert_node(block_t *node) {
 
 
 void rm_node(block_t *target) {
-
-    block_t *parent = getparent(target);
-    if (getright(target) != lastblk) {
-        block_t *rm = __find_min__(getright(target));
-        if (COLOR(rm) == RED)
-            SETCOLOR(rm, COLOR(target));
-        else{
-            __double_black__(getparent(rm));
-        }
-        //TODO move right node of rm
-        setleft(rm, getleft(target));
-        setright(rm, getright(target));
-        setparent(rm, parent);
-
-    } else {
-        block_t *left = getleft(target);
-        if (COLOR(left) == RED || COLOR(target) == RED) {
-            if (parent == startblk)
-                setright(parent, left);
-            else
-                setparent(left, parent);
-        } else {
-            //TODO target is black leaf(which is also double b)
-        }
+    block_t *replace = NULL;
+    if (getleft(target) != lastblk && getright(target) != lastblk)
+        replace = __find_min__(getright(target));
+    else {
+        __rm_node__(target);
+        return;
     }
+    __rm_node__(replace);
+
+    /* after __rm_node__, replace block is not on the tree
+       tree balance will be performed with target node,
+       and target node will be switched to replace block afterwards */
+
+    setparent(replace, getparent(target));
+    setleft(replace, getleft(target));
+    setright(replace, getright(target));
+    SETCOLOR(replace, COLOR(target));
 
 }
 
@@ -618,6 +615,13 @@ block_t *__find_min__(block_t *node) {
     return left;
 }
 
+/*function for removing node with one or no child,
+ *will completely detach node from tree
+ */
+void __rm_node__(block_t *node) {
+    
+
+}
 
 void __double_black__(block_t *node) {
 
@@ -640,3 +644,4 @@ void __right_rotate__(block_t *node) {//input will become root
     setleft(p1, node_r);
     setright(node, p1);
 }
+
