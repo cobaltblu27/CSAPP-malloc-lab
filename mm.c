@@ -61,11 +61,11 @@ team_t team = {
  * -----------------     <- void *p
  * |   size    |a/f| <- stores size of entire block
  * |---------------| __  <- return value; aligned to 8-byte
- * | prev offset   |   |
+ * | prev ptr      |   |
  * |---------------|
- * | next offset   |  old payload
+ * | next ptr      |  old payload
  * |---------------|
- * |               | __|
+ * | parent ptr    | __|
  * |---------------|
  * | padding       |
  * |---------------|
@@ -615,16 +615,30 @@ block_t *__find_min__(block_t *node) {
     return left;
 }
 
-/*function for removing node with one or no child,
- *will completely detach node from tree
+/* function for removing node with one or no child,
+ * will completely detach node from tree
  */
 void __rm_node__(block_t *node) {
-    
+    block_t *parent = getparent(node);
+    block_t *child; //child = existing child node, lastblk(black) if none
+    if (getleft(node) == lastblk)
+        child = getright(node);
+    else
+        child = getleft(node);
 
+    if (getsize(node) < getsize(parent))
+        setleft(parent, child);
+    else
+        setright(parent, child);
+
+    if (COLOR(child) == RED)
+        SETCOLOR(child, COLOR(node));
+    else if (COLOR(node) == BLACK)
+        __double_black__(parent);
 }
 
 void __double_black__(block_t *node) {
-
+    
 }
 
 void __left_rotate__(block_t *node) {//input will become root
