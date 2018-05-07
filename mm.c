@@ -285,7 +285,8 @@ void *mm_realloc(void *ptr, size_t size) {
 void mm_check() {
     void *p = startblk;
     void *heap_end = mem_heap_hi();
-    int freeblks = 0, freelistblks = 0;
+    int freeblks = 0;
+    //int freelistblks = 0;
 
     //checking heap start to end
 
@@ -361,7 +362,7 @@ void Exit(int st) {
 
 void blkstatus(void *ptr) {
     printf("\n");
-    if (ptr < mem_heap_lo() || ptr > mem_heap_hi() || !(long) (ptr + 4) & 0x7) {
+    if (ptr < mem_heap_lo() || ptr > mem_heap_hi() || !((long) (ptr + 4) & 0x7)) {
         printf("blkstatus: pointer invalid, %p\n", ptr);
         return;
     }
@@ -626,10 +627,7 @@ void __rm_node__(block_t *node) {
     else
         child = getleft(node);
 
-    if (getsize(node) < getsize(parent))
-        setleft(parent, child);
-    else
-        setright(parent, child);
+    (getsize(node) < getsize(parent) ? setleft : setright)(parent, child);
 
     if (COLOR(child) == RED)
         SETCOLOR(child, COLOR(node));
@@ -638,7 +636,44 @@ void __rm_node__(block_t *node) {
 }
 
 void __double_black__(block_t *node) {
-    
+    if(node == getroot())
+        return;
+    block_t *p = getparent(node);
+    block_t *s, *l, *r;//sibling, sibling-left, sibling-right
+    if (getsize(node) < getsize(p)) {
+        s = getright(p);
+        l = getleft(s);
+        r = getright(s);
+    } else {
+        s = getleft(p);
+        l = getright(p);
+        r = getleft(p);
+    }
+
+    if (COLOR(r) == RED) {//case *-2
+        int p_color = COLOR(p);
+        (getsize(node) < getsize(p) ? __left_rotate__ : __right_rotate__)(s);
+        SETCOLOR(p, BLACK);
+        SETCOLOR(s, p_color);
+        SETCOLOR(r, BLACK);
+    } else if (COLOR(l) == RED) {//case *-3
+        (getsize(node) < getsize(p) ? __right_rotate__ : __left_rotate__)(l);
+        SETCOLOR(l, BLACK);
+        SETCOLOR(s, RED);
+        __double_black__(node);
+    } else if (COLOR(p) == RED) {//case 1-1
+        SETCOLOR(p, BLACK);
+        SETCOLOR(s, RED);
+    } else if (COLOR(s) == BLACK) {//case 2-1
+        SETCOLOR(s, RED);
+        __double_black__(p);
+    } else {//case 2-4
+        (getsize(node) < getsize(p) ? __left_rotate__ : __right_rotate__)(s);
+        SETCOLOR(s, BLACK);
+        SETCOLOR(p, RED);
+        __double_black__(node);
+    }
+
 }
 
 void __left_rotate__(block_t *node) {//input will become root
