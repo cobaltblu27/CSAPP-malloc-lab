@@ -45,7 +45,8 @@ team_t team = {
 
 #define COLOR(p) (*(unsigned int *)(p) & 0x6)
 
-#define SETCOLOR(p, color) (*(unsigned int*)(p) = *(unsigned int*)(p) | (color))
+#define SETCOLOR(p, color) {*(unsigned int*)(p) = *(unsigned int*)(p) | (color);\
+                *(unsigned int *) ((void *) (p) + getsize(p) - 4) = *(unsigned int*) (p);}
 
 #define ALC 0
 #define FREE 1
@@ -102,7 +103,7 @@ static block_t *lastblk;
 //fill in header and footer
 static void pack(block_t *blk, size_t size, int alloc);
 
-static inline int header_valid(void *header);
+static inline int header_valid(void *blk);
 
 static size_t getsize(block_t *blk);
 
@@ -349,8 +350,9 @@ void mm_check() {
 }
 
 //returns 1 header p is valid
-static inline int header_valid(void *header) {
-    return !(*(unsigned int *) header - *(unsigned int *) (header + getsize(header) - 4));
+static inline int header_valid(void *blk) {
+    printf("\n%d %d\n", *(unsigned int *) blk, *(unsigned int *) (blk + getsize(blk) - 4));
+    return *(unsigned int *) blk == *(unsigned int *) (blk + getsize(blk) - 4);
 }
 
 void Exit(int st) {
@@ -459,7 +461,7 @@ int allocated(block_t *blk) {
 }
 
 int isfree(block_t *blk) {
-    return blk->header & 0x7;
+    return blk->header & 0x1;
 }
 
 block_t *getroot() {
@@ -629,14 +631,14 @@ void __rm_node__(block_t *node) {
 
     (getsize(node) < getsize(parent) ? setleft : setright)(parent, child);
 
-    if (COLOR(child) == RED)
+    if (COLOR(child) == RED) {
         SETCOLOR(child, COLOR(node));
-    else if (COLOR(node) == BLACK)
+    } else if (COLOR(node) == BLACK)
         __double_black__(parent);
 }
 
 void __double_black__(block_t *node) {
-    if(node == getroot())
+    if (node == getroot())
         return;
     block_t *p = getparent(node);
     block_t *s, *l, *r;//sibling, sibling-left, sibling-right
