@@ -294,7 +294,7 @@ void mm_check() {
     //checking heap start to end
 
     if (verbose)
-        printf("mm_check - block headers: ");
+        printf("\nmm_check - block headers: ");
     while (p < heap_end) {//check if its end of heap
         if (verbose)
             printf("%p", p);
@@ -322,7 +322,7 @@ void mm_check() {
     if (verbose)
         printf("%p(end)\n", heap_end);
 
-    freeblks = checkfree(getroot());
+    freelistblks = checkfree(getroot());
 
     if (freeblks != freelistblks) {
         if (verbose)
@@ -334,9 +334,10 @@ void mm_check() {
 
 }
 
+/************************************************************************/
+
 //returns 1 header p is valid
 static inline int header_valid(void *blk) {
-    printf("\n%d %d\n", *(unsigned int *) blk, *(unsigned int *) (blk + getsize(blk) - 4));
     return *(unsigned int *) blk == *(unsigned int *) (blk + getsize(blk) - 4);
 }
 
