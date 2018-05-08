@@ -148,6 +148,8 @@ static void rm_node(block_t *target);
 
 static void insert_node(block_t *node);
 
+static int checkfree(block_t *root);
+
 /*
  * mm_init - initialize the malloc package.
  */
@@ -287,7 +289,7 @@ void mm_check() {
     void *p = startblk;
     void *heap_end = mem_heap_hi();
     int freeblks = 0;
-    //int freelistblks = 0;
+    int freelistblks = 0;
 
     //checking heap start to end
 
@@ -320,30 +322,13 @@ void mm_check() {
     if (verbose)
         printf("%p(end)\n", heap_end);
 
-//    p = getright(startblk);
-//
-//    //checking free blocks link by link
-//    while (p != lastblk) {
-//        freelistblks++;
-//        if (verbose)
-//            printf("mm_check: %p %p\n", getright(p), getleft(p));
-//        if (allocated(getright(p)) || allocated(getleft(p))) {
-//            if (verbose)
-//                printf("next: %p, prev: %p\n", getright(p), getleft(p));
-//            if (getleft(p) != startblk && getright(p) != lastblk) {
-//                if (verbose)
-//                    printf("linked free block is not actually free\n");
-//                Exit(0);
-//            }
-//        }
-//        p = getright(p);
-//    }
-//
-//    if (freeblks != freelistblks) {
-//        if (verbose)
-//            printf("free blocks: %d, free blocks in list: %d\n", freeblks, freelistblks);
-//        Exit(0);
-//    }
+    freeblks = checkfree(getroot());
+
+    if (freeblks != freelistblks) {
+        if (verbose)
+            printf("free blocks: %d, free blocks in list: %d\n", freeblks, freelistblks);
+        Exit(0);
+    }
     if (verbose)
         printf("mm_check: exiting\n");
 
@@ -694,5 +679,18 @@ void __right_rotate__(block_t *node) {//input will become root
     setparent(node, p2);
     setleft(p1, node_r);
     setright(node, p1);
+}
+
+int checkfree(block_t *root) {
+    if (root == lastblk)
+        return 0;
+    if(isfree(root) != 1){
+        printf("block in tree is not actually free\n");
+        Exit(0);
+    }
+    int freecnt = 1;
+    freecnt += checkfree(getright(root));
+    freecnt += checkfree(getleft(root));
+    return freecnt;
 }
 
