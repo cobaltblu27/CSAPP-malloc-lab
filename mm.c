@@ -34,7 +34,8 @@ team_t team = {
         /* Second member's email address (leave blank if none) */
         ""
 };
-
+#define CHECK 1
+#define PRINTBLK 0
 /* single word (4) or double word (8) alignment */
 #define ALIGNMENT 8
 
@@ -91,10 +92,9 @@ void blkstatus(void *ptr);
 typedef struct block {
     unsigned int header;
 
-//TODO make it struct block *left;
-
     unsigned int left[0];
     unsigned int right[0];
+    unsigned int parent[0];
 } block_t;
 
 static block_t *startblk;
@@ -193,25 +193,28 @@ void *mm_malloc(size_t size) {
     if (p == lastblk) {
         block_t *new = mem_sbrk((int) newsize);
         pack(new, newsize, ALC);
-        mm_check();
+        if (CHECK)
+            mm_check();
         return ptr(new);
     }
 
     oldsize = getsize(p);
     if (oldsize - newsize < ALIGNMENT * 3) {
-        rm_node(p);
+        rm_node(p);//TODO p has wrong connections to children
         pack(p, oldsize, ALC);
     } else {
         rm_node(p);
         block_t *after;
         pack(p, newsize, ALC);
 
+        //split
         after = getafter(p);
 
         pack(after, oldsize - newsize, FREE | RED);
         insert_node(after);
     }
-    mm_check();
+    if (CHECK)
+        mm_check();
     return ptr(p);
 }
 
@@ -256,7 +259,8 @@ void mm_free(void *ptr) {
         pack(p, blksize, FREE | RED);
         insert_node(p);
     }
-    mm_check();
+    if (CHECK)
+        mm_check();
 }
 
 /*
@@ -286,10 +290,10 @@ void mm_check() {
 
     //checking heap start to end
 
-    if (verbose)
+    if (PRINTBLK)
         printf("mm_check - block headers: ");
     while (p < heap_end) {//check if its end of heap
-        if (verbose)
+        if (PRINTBLK)
             printf("%p", p);
         //check if p is valid
         if (p < mem_heap_lo() || p > mem_heap_hi() || (long) (p + 4) & 0x7) {
@@ -303,16 +307,16 @@ void mm_check() {
             Exit(0);
         }
 
-        if (isfree(p)) {
+        if (isfree(p)){
             freeblks++;
-            if (verbose)
+            if (PRINTBLK)
                 printf("(f,%x) ", (unsigned int) getsize(p));
-        } else if (verbose)
+        } else if (PRINTBLK)
             printf("(a,%x) ", (unsigned int) getsize(p));
 
         p = getafter(p);
     }
-    if (verbose)
+    if (PRINTBLK)
         printf("%p(end)\n", heap_end);
 
     freelistblks = checkfree(getroot());
@@ -322,6 +326,8 @@ void mm_check() {
             printf("free blocks: %d, free blocks in list: %d\n", freeblks, freelistblks);
         Exit(0);
     }
+    if (verbose)
+        printf("free list size: %d\n", freeblks);
     if (verbose)
         printf("mm_check: exiting\n");
 
@@ -620,7 +626,7 @@ void __rm_node__(block_t *node) {
 }
 
 void __double_black__(block_t *node) {
-    if(node == startblk)//free made tree empty, no need to do anything
+    if (node == startblk)//free made tree empty, no need to do anything
         return;
     if (node == getroot())
         return;
