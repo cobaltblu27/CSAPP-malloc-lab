@@ -32,8 +32,8 @@
           <file leaf-file-name="mm.c" pinned="false" current-in-tab="true">
             <entry file="file://$PROJECT_DIR$/mm.c">
               <provider selected="true" editor-type-id="text-editor">
-                <state relative-caret-position="-6808">
-                  <caret line="96" column="25" lean-forward="false" selection-start-line="96" selection-start-column="25" selection-end-line="96" selection-end-column="25" />
+                <state relative-caret-position="450">
+                  <caret line="49" column="51" lean-forward="false" selection-start-line="49" selection-start-column="51" selection-end-line="49" selection-end-column="51" />
                   <folding>
                     <element signature="e#472#490#0" expanded="true" />
                   </folding>
@@ -68,8 +68,8 @@
           <file leaf-file-name="mm.c" pinned="false" current-in-tab="true">
             <entry file="file://$PROJECT_DIR$/mm.c">
               <provider selected="true" editor-type-id="text-editor">
-                <state relative-caret-position="631">
-                  <caret line="568" column="76" lean-forward="false" selection-start-line="568" selection-start-column="76" selection-end-line="568" selection-end-column="76" />
+                <state relative-caret-position="716">
+                  <caret line="592" column="23" lean-forward="true" selection-start-line="592" selection-start-column="23" selection-end-line="592" selection-end-column="23" />
                   <folding>
                     <element signature="e#472#490#0" expanded="true" />
                   </folding>
@@ -129,6 +129,7 @@
       <find>SETCOLOR</find>
       <find>isfree</find>
       <find>mm_check</find>
+      <find>insert_balance</find>
     </findStrings>
   </component>
   <component name="Git.Settings">
@@ -241,7 +242,7 @@
     <servers />
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="115921000" />
+    <option name="totallyTimeSpent" value="118112000" />
   </component>
   <component name="ToolWindowManager">
     <frame x="260" y="22" width="1922" height="1092" extended-state="6" />
@@ -288,21 +289,26 @@
       <breakpoints>
         <line-breakpoint enabled="true" type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
           <url>file://$PROJECT_DIR$/mm.c</url>
-          <line>505</line>
-          <option name="timeStamp" value="12" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
-          <url>file://$PROJECT_DIR$/mm.c</url>
           <line>203</line>
           <option name="timeStamp" value="13" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
           <url>file://$PROJECT_DIR$/mm.c</url>
-          <line>568</line>
-          <option name="timeStamp" value="14" />
+          <line>579</line>
+          <option name="timeStamp" value="18" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
+          <url>file://$PROJECT_DIR$/mm.c</url>
+          <line>580</line>
+          <option name="timeStamp" value="20" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
+          <url>file://$PROJECT_DIR$/mm.c</url>
+          <line>583</line>
+          <option name="timeStamp" value="21" />
         </line-breakpoint>
       </breakpoints>
-      <option name="time" value="15" />
+      <option name="time" value="22" />
     </breakpoint-manager>
     <watches-manager />
   </component>
@@ -737,8 +743,8 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/mm.c">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="631">
-          <caret line="568" column="76" lean-forward="false" selection-start-line="568" selection-start-column="76" selection-end-line="568" selection-end-column="76" />
+        <state relative-caret-position="716">
+          <caret line="592" column="23" lean-forward="true" selection-start-line="592" selection-start-column="23" selection-end-line="592" selection-end-column="23" />
           <folding>
             <element signature="e#472#490#0" expanded="true" />
           </folding>

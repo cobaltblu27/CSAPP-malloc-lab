@@ -46,7 +46,7 @@ team_t team = {
 
 #define COLOR(p) (*(unsigned int *)(p) & 0x6)
 
-#define SETCOLOR(p, color) {*(unsigned int*)(p) = *(unsigned int*)(p) | (color);\
+#define SETCOLOR(p, color) {*(unsigned int*)(p) = (*(unsigned int*)(p) & ~0x2) | (color);\
                 *(unsigned int *) ((void *) (p) + getsize(p) - 4) = *(unsigned int*) (p);}
 
 #define ALC 0
@@ -572,24 +572,31 @@ void __insert_balance__(block_t *node) {
 
             if (getsize(node) < getsize(parent)) {     //  g
                 __right_rotate__(node);                //     p
-            }                                          //   n
+                __left_rotate__(node);                 //   n
+                SETCOLOR(node, BLACK);
+                SETCOLOR(grandparent, RED);
+                return;
+            }
             SETCOLOR(parent, BLACK);
             SETCOLOR(grandparent, RED);
 
             //counter-clockwise rotate
-            __left_rotate__(node);
+            __left_rotate__(parent);
 
         } else if (getsize(parent) < getsize(grandparent)
                    && getright(grandparent) == lastblk) {
 
             if (getsize(parent) <= getsize(node)) {      //    g
                 __left_rotate__(node);                   // p
-            }                                            //   n
+                SETCOLOR(node, BLACK);                   //   n
+                SETCOLOR(grandparent, RED);
+                return;
+            }
             SETCOLOR(parent, BLACK);
             SETCOLOR(grandparent, RED);
 
             //clockwise rotate
-            __right_rotate__(node);
+            __right_rotate__(parent);
 
         } else {
             SETCOLOR(grandparent, RED);
