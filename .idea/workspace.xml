@@ -13,16 +13,8 @@
   <component name="ChangeListManager">
     <list default="true" id="4154d047-e985-44c7-b41c-340b9bf5c43d" name="Default" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
-      <change beforePath="$PROJECT_DIR$/Makefile" afterPath="$PROJECT_DIR$/Makefile" />
-      <change beforePath="$PROJECT_DIR$/clock.o" afterPath="$PROJECT_DIR$/clock.o" />
-      <change beforePath="$PROJECT_DIR$/fcyc.o" afterPath="$PROJECT_DIR$/fcyc.o" />
-      <change beforePath="$PROJECT_DIR$/fsecs.o" afterPath="$PROJECT_DIR$/fsecs.o" />
-      <change beforePath="$PROJECT_DIR$/ftimer.o" afterPath="$PROJECT_DIR$/ftimer.o" />
-      <change beforePath="$PROJECT_DIR$/mdriver" afterPath="$PROJECT_DIR$/mdriver" />
-      <change beforePath="$PROJECT_DIR$/mdriver.o" afterPath="$PROJECT_DIR$/mdriver.o" />
-      <change beforePath="$PROJECT_DIR$/memlib.o" afterPath="$PROJECT_DIR$/memlib.o" />
+      <change beforePath="$PROJECT_DIR$/gmon.out" afterPath="$PROJECT_DIR$/gmon.out" />
       <change beforePath="$PROJECT_DIR$/mm.c" afterPath="$PROJECT_DIR$/mm.c" />
-      <change beforePath="$PROJECT_DIR$/mm.o" afterPath="$PROJECT_DIR$/mm.o" />
     </list>
     <ignored path="$PROJECT_DIR$/cmake-build-debug/" />
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
@@ -40,8 +32,8 @@
           <file leaf-file-name="mm.c" pinned="false" current-in-tab="true">
             <entry file="file://$PROJECT_DIR$/mm.c">
               <provider selected="true" editor-type-id="text-editor">
-                <state relative-caret-position="356">
-                  <caret line="93" column="0" lean-forward="false" selection-start-line="93" selection-start-column="0" selection-end-line="93" selection-end-column="0" />
+                <state relative-caret-position="-6808">
+                  <caret line="96" column="25" lean-forward="false" selection-start-line="96" selection-start-column="25" selection-end-line="96" selection-end-column="25" />
                   <folding>
                     <element signature="e#472#490#0" expanded="true" />
                   </folding>
@@ -76,8 +68,8 @@
           <file leaf-file-name="mm.c" pinned="false" current-in-tab="true">
             <entry file="file://$PROJECT_DIR$/mm.c">
               <provider selected="true" editor-type-id="text-editor">
-                <state relative-caret-position="415">
-                  <caret line="414" column="23" lean-forward="true" selection-start-line="414" selection-start-column="23" selection-end-line="414" selection-end-column="23" />
+                <state relative-caret-position="631">
+                  <caret line="568" column="76" lean-forward="false" selection-start-line="568" selection-start-column="76" selection-end-line="568" selection-end-column="76" />
                   <folding>
                     <element signature="e#472#490#0" expanded="true" />
                   </folding>
@@ -249,7 +241,7 @@
     <servers />
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="115007000" />
+    <option name="totallyTimeSpent" value="115921000" />
   </component>
   <component name="ToolWindowManager">
     <frame x="260" y="22" width="1922" height="1092" extended-state="6" />
@@ -296,16 +288,21 @@
       <breakpoints>
         <line-breakpoint enabled="true" type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
           <url>file://$PROJECT_DIR$/mm.c</url>
-          <line>504</line>
+          <line>505</line>
           <option name="timeStamp" value="12" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
           <url>file://$PROJECT_DIR$/mm.c</url>
-          <line>202</line>
+          <line>203</line>
           <option name="timeStamp" value="13" />
         </line-breakpoint>
+        <line-breakpoint enabled="true" type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
+          <url>file://$PROJECT_DIR$/mm.c</url>
+          <line>568</line>
+          <option name="timeStamp" value="14" />
+        </line-breakpoint>
       </breakpoints>
-      <option name="time" value="14" />
+      <option name="time" value="15" />
     </breakpoint-manager>
     <watches-manager />
   </component>
@@ -740,8 +737,8 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/mm.c">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="415">
-          <caret line="414" column="23" lean-forward="true" selection-start-line="414" selection-start-column="23" selection-end-line="414" selection-end-column="23" />
+        <state relative-caret-position="631">
+          <caret line="568" column="76" lean-forward="false" selection-start-line="568" selection-start-column="76" selection-end-line="568" selection-end-column="76" />
           <folding>
             <element signature="e#472#490#0" expanded="true" />
           </folding>

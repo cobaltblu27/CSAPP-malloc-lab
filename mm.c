@@ -92,9 +92,10 @@ void blkstatus(void *ptr);
 typedef struct block {
     unsigned int header;
 
+//TODO make it struct block *left;
+
     unsigned int left[0];
     unsigned int right[0];
-    unsigned int parent[0];
 } block_t;
 
 static block_t *startblk;
@@ -565,7 +566,7 @@ void __insert_balance__(block_t *node) {
         SETCOLOR(node, BLACK);
         return;
     }
-    if (COLOR(parent) == RED) {
+    if (COLOR(parent) == RED) {//TODO problem IS happening inside this scope
         if (getsize(grandparent) <= getsize(parent)
             && getleft(grandparent) == lastblk) {
 
