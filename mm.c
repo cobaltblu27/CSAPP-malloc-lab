@@ -182,6 +182,8 @@ int mm_init(void) {
  */
 
 void *mm_malloc(size_t size) {
+    if (verbose)
+        printf("malloc %x\n", (unsigned int) size);
     size_t newsize = ALIGN(size + ALIGNMENT);
     size_t oldsize;
     block_t *p;
@@ -191,6 +193,7 @@ void *mm_malloc(size_t size) {
     if (p == lastblk) {
         block_t *new = mem_sbrk((int) newsize);
         pack(new, newsize, ALC);
+        mm_check();
         return ptr(new);
     }
 
@@ -199,19 +202,14 @@ void *mm_malloc(size_t size) {
         rm_node(p);
         pack(p, oldsize, ALC);
     } else {
+        rm_node(p);
         block_t *after;
-        block_t *left, *right, *parent;
-
-        left = getleft(p);
-        right = getright(p);
-        parent = getparent(p);
-
         pack(p, newsize, ALC);
 
         after = getafter(p);
-        setleft(after, left);
-        setright(after, right);
-        setparent(after, parent);
+
+        pack(after, oldsize - newsize, FREE | RED);
+        insert_node(after);
     }
     mm_check();
     return ptr(p);
@@ -226,6 +224,8 @@ void mm_free(void *ptr) {
     block_t *before, *after;
     size_t blksize;
     p = ptr - sizeof(unsigned int);
+    if (verbose)
+        printf("freeing %p (%p)\n", ptr, p);
     if (!header_valid(p) || !allocated(p)) {
         //compare header and footer, return if invalid
         return;
@@ -237,6 +237,7 @@ void mm_free(void *ptr) {
 
 
     if (isfree(before)) {
+        rm_node(before);
         blksize += getsize(before);
         pack(before, blksize, FREE | COLOR(before));
         p = before;
@@ -245,22 +246,14 @@ void mm_free(void *ptr) {
             rm_node(after);
             pack(p, blksize + getsize(after), FREE | COLOR(p));
         }
+        insert_node(p);
     } else if (isfree(after)
                && (unsigned int) after < (unsigned int) mem_heap_hi()) {
-        block_t *left, *right, *parent;
-        left = getleft(after);
-        right = getright(after);
-        parent = getparent(after);
-
-        pack(p, blksize + getsize(after), FREE | COLOR(after));
-
-        setleft(p, left);
-        setright(p, right);
-        setparent(p, parent);
+        rm_node(after);
+        pack(p, blksize + getsize(after), FREE | RED);
+        insert_node(p);
     } else {
         pack(p, blksize, FREE | RED);
-        setleft(p, lastblk);
-        setright(p, lastblk);
         insert_node(p);
     }
     mm_check();
@@ -294,7 +287,7 @@ void mm_check() {
     //checking heap start to end
 
     if (verbose)
-        printf("\nmm_check - block headers: ");
+        printf("mm_check - block headers: ");
     while (p < heap_end) {//check if its end of heap
         if (verbose)
             printf("%p", p);
@@ -483,6 +476,8 @@ block_t *bestfit(size_t size) {
 
 void insert_node(block_t *node) {
     block_t *root = getroot();
+    setleft(node, lastblk);
+    setright(node, lastblk);
     if (root == lastblk) {
         //tree empty, make node root
         setright(startblk, node);
@@ -497,9 +492,10 @@ void insert_node(block_t *node) {
 
 void rm_node(block_t *target) {
     block_t *replace = NULL;
-    if (getleft(target) != lastblk && getright(target) != lastblk)
+    if (getleft(target) != lastblk && getright(target) != lastblk) {
+        //has two child node
         replace = __find_min__(getright(target));
-    else {
+    } else {
         __rm_node__(target);
         return;
     }
@@ -624,6 +620,8 @@ void __rm_node__(block_t *node) {
 }
 
 void __double_black__(block_t *node) {
+    if(node == startblk)//free made tree empty, no need to do anything
+        return;
     if (node == getroot())
         return;
     block_t *p = getparent(node);
@@ -685,7 +683,7 @@ void __right_rotate__(block_t *node) {//input will become root
 int checkfree(block_t *root) {
     if (root == lastblk)
         return 0;
-    if(isfree(root) != 1){
+    if (isfree(root) != 1) {
         printf("block in tree is not actually free\n");
         Exit(0);
     }
