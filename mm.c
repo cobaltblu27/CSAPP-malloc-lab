@@ -61,13 +61,17 @@ team_t team = {
  *
  * 32              0
  * -----------------     <- void *p
- * |   size    |a/f| <- stores size of entire block
+ * |   size    |a/f| <- stores size of entire block and flags(visited, r/b, a/f)
  * |---------------| __  <- return value; aligned to 8-byte
  * | prev ptr      |   |
  * |---------------|
  * | next ptr      |  old payload
  * |---------------|
- * | parent ptr    | __|
+ * | parent ptr    | __| <- parent node in tree or previous node in seg-list
+ * |---------------|
+ * | next ptr      | <- used to point to block with same size(like seg-list)
+ * |---------------|
+ * | payload       |
  * |---------------|
  * | padding       |
  * |---------------|
@@ -76,8 +80,8 @@ team_t team = {
 ************************/
 
 /*
- * TODO 1) increase util by preventing fragmentation
- * TODO 2) move on to red-black tree
+ * TODO 1) implement segregated list on tree
+ * TODO 2) improve performance by avoiding fragmentation and implementing realloc
  */
 
 extern int verbose;
@@ -120,11 +124,15 @@ static void setright(block_t *blk, block_t *rightnode);
 //set parent node
 static void setparent(block_t *blk, block_t *parentnode);
 
+static void setnext(block_t *blk, block_t *nextnode);
+
 static block_t *getleft(block_t *blk);
 
 static block_t *getright(block_t *blk);
 
 static block_t *getparent(block_t *blk);
+
+static block_t *getnext(block_t *blk);
 
 //get adjacent block right after
 static block_t *getafter(block_t *blk);
@@ -338,6 +346,45 @@ static inline int header_valid(void *blk) {
     return *(unsigned int *) blk == *(unsigned int *) (blk + getsize(blk) - 4);
 }
 
+int cntlist(block_t *node){
+    if(node == lastblk)
+        return 0;
+    else return 1 + cntlist(getnext(node));
+}
+
+int checkfreetree(block_t *root) {
+    block_t *left = getleft(root);
+    block_t *right = getright(root);
+    if (root == lastblk)
+        return 0;
+    if (isfree(root) != 1) {
+        printf("block in tree is not actually free\n");
+        Exit(0);
+    }
+    if (root->header & 0x4) {
+        printf("tree connection is messed up\n");
+        Exit(0);
+    }
+    root->header = root->header | 0x4;//flag for checking visited node
+    int freecnt = cntlist(root);
+    if (COLOR(root) == RED) {
+        if (COLOR(left) == RED || COLOR(right) == RED) {
+            printf("red child of red node\n");
+            Exit(0);
+        }
+    }
+    if (left != lastblk && right != lastblk)
+        if (getsize(left) >= getsize(root) || getsize(root) >= getsize(right)) {
+            printf("size incorrect\n");
+            Exit(0);
+        }
+
+    freecnt += checkfreetree(right);
+    freecnt += checkfreetree(left);
+    root->header = root->header & ~0x4;
+    return freecnt;
+}
+
 void Exit(int st) {
     printf("\n--Exit summary--\nheap area: %p to %p\nheap size: %x\n", mem_heap_lo(), mem_heap_hi(),
            (unsigned int) mem_heapsize());
@@ -404,6 +451,12 @@ block_t *getparent(block_t *blk) {
     return *payload;
 }
 
+block_t *getnext(block_t *blk) {
+    void **payload = (void **) blk->left;
+    payload += 3;
+    return *payload;
+}
+
 void setleft(block_t *blk, block_t *leftnode) {
     void **leftptr = (void **) blk->left;
     *leftptr = leftnode;
@@ -434,6 +487,15 @@ void setparent(block_t *blk, block_t *parentnode) {
     *targetptr = blk;
 }
 
+void setnext(block_t *blk, block_t *nextnode) {
+    void **nextptr = (void **) blk->left;
+    nextptr += 3;
+    *nextptr = nextnode;
+
+    void **next_parent = (void **) nextnode->left;
+    next_parent += 2;
+    *next_parent = blk;
+}
 
 void *ptr(block_t *blk) {
     return blk->left;
@@ -482,11 +544,13 @@ void insert_node(block_t *node) {
     block_t *root = getroot();
     setleft(node, lastblk);
     setright(node, lastblk);
+    setnext(node, lastblk);
     if (root == lastblk) {
         //tree empty, make node root
         setright(startblk, node);
         setright(node, lastblk);
         setleft(node, lastblk);
+        setnext(node, lastblk);
         SETCOLOR(node, BLACK);
         return;
     }
@@ -495,6 +559,21 @@ void insert_node(block_t *node) {
 
 
 void rm_node(block_t *target) {
+    block_t *prev = getparent(target);
+    block_t *next = getnext(target);
+    if (getsize(prev) == getsize(target)
+        && isfree(prev)) {//parent could be prologue block
+        setnext(prev, next);
+        return;
+    } else if(next != lastblk){
+        setparent(next, getparent(target));
+        setleft(next, getleft(target));
+        setright(next, getright(target));
+        SETCOLOR(next, COLOR(target));
+        return;
+    }
+
+    //no replaceable entry in seg-list
     block_t *replace = NULL;
     if (getleft(target) != lastblk && getright(target) != lastblk) {
         //has two child node
@@ -503,7 +582,7 @@ void rm_node(block_t *target) {
         __rm_node__(target);
         return;
     }
-    __rm_node__(replace);//TODO makes infinite loop
+    __rm_node__(replace);
 
     /* after __rm_node__, replace block is not on the tree
        tree balance will be performed with target node,
@@ -520,16 +599,17 @@ void rm_node(block_t *target) {
 
 block_t *__tree_search__(block_t *node, size_t size) {
     size_t blksize = getsize(node);
-    if (node == lastblk)
+    if (node == lastblk) {
         return node;
+    }
     if (blksize < size) {
         return __tree_search__(getright(node), size);
-    } else {
-        struct block *left_search;
-        left_search = __tree_search__(getleft(node), size);
-        if (left_search == lastblk)
-            return node;
-        else return left_search;
+    } else if(blksize > size){
+        return __tree_search__(getleft(node), size);
+    } else{
+        if(getnext(node) != lastblk)
+            return getnext(node);
+        else return node;
     }
 }
 
@@ -541,12 +621,16 @@ void __insert_node__(block_t *root, block_t *node) {
             setleft(root, node);
             __insert_balance__(node);
         } else __insert_node__(getleft(root), node);
-    } else {
+    } else if (getsize(root) < getsize(node)) {
         //right
         if (getright(root) == lastblk) {
             setright(root, node);
             __insert_balance__(node);
         } else __insert_node__(getright(root), node);
+    } else {
+        block_t *next = getnext(root);
+        setnext(node, next);
+        setnext(root, node);
     }
 }
 
@@ -554,7 +638,7 @@ void __insert_node__(block_t *root, block_t *node) {
  * balance function - only call on new leaf node or color change
  * input must be always red
  */
-void __insert_balance__(block_t *node) {//TODO node is cycling
+void __insert_balance__(block_t *node) {
 
     block_t *parent = getparent(node);
     block_t *grandparent = getparent(parent);
@@ -697,37 +781,3 @@ void __right_rotate__(block_t *node) {//input will become root
     setleft(p1, node_r);
     setright(node, p1);
 }
-
-int checkfreetree(block_t *root) {
-    block_t *left = getleft(root);
-    block_t *right = getright(root);
-    if (root == lastblk)
-        return 0;
-    if (isfree(root) != 1) {
-        printf("block in tree is not actually free\n");
-        Exit(0);
-    }
-    if (root->header & 0x4) {
-        printf("tree connection is messed up\n");
-        Exit(0);
-    }
-    root->header = root->header | 0x4;//flag for checking visited node
-    int freecnt = 1;
-    if (COLOR(root) == RED) {
-        if (COLOR(left) == RED || COLOR(right) == RED) {
-            printf("red child of red node\n");
-            Exit(0);
-        }
-    }
-    if (left != lastblk && right != lastblk)
-        if (getsize(left) > getsize(root) || getsize(root) > getsize(right)) {
-            printf("size incorrect\n");
-            Exit(0);
-        }
-
-    freecnt += checkfreetree(right);
-    freecnt += checkfreetree(left);
-    root->header = root->header & ~0x4;
-    return freecnt;
-}
-
