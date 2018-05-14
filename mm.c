@@ -159,6 +159,8 @@ static void insert_node(block_t *node);
 
 static int checkfreetree(block_t *root);
 
+static int checkblackheight(block_t *root);
+
 /*
  * mm_init - initialize the malloc package.
  */
@@ -206,7 +208,6 @@ void *mm_malloc(size_t size) {
             mm_check();
         return ptr(new);
     }
-
     oldsize = getsize(p);
     if (oldsize - newsize < ALIGNMENT * 3) {
         rm_node(p);
@@ -219,7 +220,7 @@ void *mm_malloc(size_t size) {
         //split
         after = getafter(p);
 
-        pack(after, oldsize - newsize, FREE | RED);
+        pack(after, oldsize - newsize, FREE);
         insert_node(after);
     }
     if (CHECK)
@@ -247,23 +248,22 @@ void mm_free(void *ptr) {
     before = getbefore(p);
     after = getafter(p);
 
-
     if (isfree(before)) {
         rm_node(before);
         blksize += getsize(before);
-        pack(before, blksize, FREE | COLOR(before));
+        pack(before, blksize, FREE);
         p = before;
         if (isfree(after) && (unsigned int) after < (unsigned int) mem_heap_hi()) {
-            rm_node(after);
-            pack(p, blksize + getsize(after), FREE | COLOR(p));
+            rm_node(after);//TODO problem seems to be in rm_node
+            pack(p, blksize + getsize(after), FREE);
         }
         insert_node(p);
     } else if (isfree(after) && (unsigned int) after < (unsigned int) mem_heap_hi()) {
         rm_node(after);
-        pack(p, blksize + getsize(after), FREE | RED);
+        pack(p, blksize + getsize(after), FREE);
         insert_node(p);
     } else {
-        pack(p, blksize, FREE | RED);
+        pack(p, blksize, FREE);
         insert_node(p);
     }
     if (CHECK)
@@ -334,6 +334,9 @@ void mm_check() {
             printf("free blocks: %d, free blocks in list: %d\n", freeblks, freelistblks);
         Exit(0);
     }
+
+    checkblackheight(getroot());
+
     if (verbose)
         printf("free list size: %d\n", freeblks);
 
@@ -346,8 +349,8 @@ static inline int header_valid(void *blk) {
     return *(unsigned int *) blk == *(unsigned int *) (blk + getsize(blk) - 4);
 }
 
-int cntlist(block_t *node){
-    if(node == lastblk)
+int cntlist(block_t *node) {
+    if (node == lastblk)
         return 0;
     else return 1 + cntlist(getnext(node));
 }
@@ -383,6 +386,20 @@ int checkfreetree(block_t *root) {
     freecnt += checkfreetree(left);
     root->header = root->header & ~0x4;
     return freecnt;
+}
+
+int checkblackheight(block_t *root) {
+    if (root == lastblk)
+        return 1;
+    int l = checkblackheight(getleft(root));
+    int r = checkblackheight(getright(root));
+    if (l != r) {
+        printf("black height incorrect!: %p, left: %d right: %d\n", root, l, r);
+        Exit(0);
+    }
+    if (COLOR(root) == BLACK)
+        l++;
+    return l;
 }
 
 void Exit(int st) {
@@ -542,9 +559,6 @@ block_t *bestfit(size_t size) {
 
 void insert_node(block_t *node) {
     block_t *root = getroot();
-    setleft(node, lastblk);
-    setright(node, lastblk);
-    setnext(node, lastblk);
     if (root == lastblk) {
         //tree empty, make node root
         setright(startblk, node);
@@ -554,18 +568,23 @@ void insert_node(block_t *node) {
         SETCOLOR(node, BLACK);
         return;
     }
+    setleft(node, lastblk);
+    setright(node, lastblk);
+    setnext(node, lastblk);
+    SETCOLOR(node, RED);
     __insert_node__(root, node);
+
 }
 
 
-void rm_node(block_t *target) {
+void rm_node(block_t *target) {//TODO makes black height unbalanced
     block_t *prev = getparent(target);
     block_t *next = getnext(target);
     if (getsize(prev) == getsize(target)
         && isfree(prev)) {//parent could be prologue block
         setnext(prev, next);
         return;
-    } else if(next != lastblk){
+    } else if (next != lastblk) {
         setparent(next, getparent(target));
         setleft(next, getleft(target));
         setright(next, getright(target));
@@ -599,20 +618,23 @@ void rm_node(block_t *target) {
 
 block_t *__tree_search__(block_t *node, size_t size) {
     size_t blksize = getsize(node);
-    if (node == lastblk) {
+    if (node == lastblk)
         return node;
-    }
     if (blksize < size) {
         return __tree_search__(getright(node), size);
-    } else if(blksize > size){
-        return __tree_search__(getleft(node), size);
-    } else{
-        if(getnext(node) != lastblk)
-            return getnext(node);
-        else return node;
+    } else {
+        block_t *rtblock;
+        rtblock = __tree_search__(getleft(node), size);
+
+        if (rtblock == lastblk)
+            rtblock = node;
+
+        if (getnext(rtblock) != lastblk)
+            return getnext(rtblock);
+        else
+            return rtblock;
     }
 }
-
 
 void __insert_node__(block_t *root, block_t *node) {
     if (getsize(root) > getsize(node)) {
@@ -677,7 +699,7 @@ void __insert_balance__(block_t *node) {
             //clockwise rotate
             __right_rotate__(parent);
 
-        } else {                                   // grandparent(b) have two red child
+        } else {                            // grandparent(b) have two red child
             SETCOLOR(grandparent, RED);
             SETCOLOR(getleft(grandparent), BLACK);
             SETCOLOR(getright(grandparent), BLACK);
@@ -781,3 +803,4 @@ void __right_rotate__(block_t *node) {//input will become root
     setleft(p1, node_r);
     setright(node, p1);
 }
+
