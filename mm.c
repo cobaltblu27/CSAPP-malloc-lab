@@ -96,10 +96,11 @@ void blkstatus(void *ptr);
 typedef struct block {
     unsigned int header;
 
-//TODO make it struct block *left;
+    struct block *left;
+    struct block *right;
+    struct block *parent;
+    struct block *next;
 
-    unsigned int left[0];
-    unsigned int right[0];
 } block_t;
 
 static block_t *startblk;
@@ -110,7 +111,7 @@ static void pack(block_t *blk, size_t size, int alloc);
 
 static inline int header_valid(void *blk);
 
-static size_t getsize(block_t *blk);
+inline static size_t getsize(block_t *blk);
 
 //return aligned pointer from block ptr
 static void *ptr(block_t *blk);
@@ -231,7 +232,7 @@ void *mm_malloc(size_t size) {
 
 /*
  * mm_free
- * using red-black tree, node with same size will go RIGHT
+ * using red-black tree
  */
 void mm_free(void *ptr) {
     block_t *p;//points to header
@@ -459,71 +460,49 @@ block_t *getafter(block_t *blk) {
 }
 
 block_t *getleft(block_t *blk) {
-    void **ptr = (void **) blk->left;
-    return *ptr;
+    return blk->left;
 }
 
 block_t *getright(block_t *blk) {
-    void **payload = (void **) blk->left;
-    payload++;
-    return *payload;
+    return blk->right;
 }
 
 //getparent of lastblk is undefined behavior
 block_t *getparent(block_t *blk) {
-    void **payload = (void **) blk->left;
-    payload += 2;
-    return *payload;
+    return blk->parent;
 }
 
 block_t *getnext(block_t *blk) {
-    void **payload = (void **) blk->left;
-    payload += 3;
-    return *payload;
+    return blk->next;
 }
 
 void setleft(block_t *blk, block_t *leftnode) {
-    void **leftptr = (void **) blk->left;
-    *leftptr = leftnode;
-
-    void **left_parent = (void **) leftnode->left;
-    left_parent += 2;
-    *left_parent = blk;
+    blk->left = leftnode;
+    leftnode->parent = blk;
 }
 
 void setright(block_t *blk, block_t *rightnode) {
-    void **rightptr = (void *) blk->left;
-    rightptr++;
-    *rightptr = rightnode;
-
-    void **right_parent = (void **) rightnode->left;
-    right_parent += 2;
-    *right_parent = blk;
+    blk->right = rightnode;
+    rightnode->parent = blk;
 }
 
 void setparent(block_t *blk, block_t *parentnode) {
-    void **parentptr = (void **) blk->left;
-    parentptr += 2;
-    *parentptr = parentnode;
-
-    void **targetptr = (void **) parentnode->left;
+    blk->parent = parentnode;
+    block_t **targetptr;
     if (getsize(blk) >= getsize(parentnode) || parentnode == startblk)
-        targetptr++; //blk size is greater of equal to parent, blk goes right
+        targetptr = &(parentnode->right);
+    else
+        targetptr = &(parentnode->left);
     *targetptr = blk;
 }
 
 void setnext(block_t *blk, block_t *nextnode) {
-    void **nextptr = (void **) blk->left;
-    nextptr += 3;
-    *nextptr = nextnode;
-
-    void **next_parent = (void **) nextnode->left;
-    next_parent += 2;
-    *next_parent = blk;
+    blk->next = nextnode;
+    nextnode->parent = blk;
 }
 
 void *ptr(block_t *blk) {
-    return blk->left;
+    return &(blk->left);
 }
 
 int allocated(block_t *blk) {

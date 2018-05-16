@@ -1,0 +1,549 @@
+Flat profile:
+
+Each sample counts as 0.01 seconds.
+  %   cumulative   self              self     total           
+ time   seconds   seconds    calls  ms/call  ms/call  name    
+ 25.00      0.01     0.01   140688     0.00     0.00  setright
+ 25.00      0.02     0.01    62688     0.00     0.00  isfree
+ 25.00      0.03     0.01    46932     0.00     0.00  __insert_node__
+ 25.00      0.04     0.01    38808     0.00     0.00  __insert_balance__
+  0.00      0.04     0.00  2058600     0.00     0.00  getsize
+  0.00      0.04     0.00   887016     0.00     0.00  getright
+  0.00      0.04     0.00   659856     0.00     0.00  getleft
+  0.00      0.04     0.00   267060     0.00     0.00  getparent
+  0.00      0.04     0.00   145272     0.00     0.00  getroot
+  0.00      0.04     0.00   133536     0.00     0.00  setleft
+  0.00      0.04     0.00   109548     0.00     0.00  getnext
+  0.00      0.04     0.00    82296     0.00     0.00  pack
+  0.00      0.04     0.00    68316     0.00     0.00  setnext
+  0.00      0.04     0.00    51264     0.00     0.00  setparent
+  0.00      0.04     0.00    46992     0.00     0.00  getafter
+  0.00      0.04     0.00    46980     0.00     0.00  insert_node
+  0.00      0.04     0.00    46968     0.00     0.00  rm_node
+  0.00      0.04     0.00    38844     0.00     0.00  __rm_node__
+  0.00      0.04     0.00    28800     0.00     0.00  __tree_search__
+  0.00      0.04     0.00    28800     0.00     0.00  allocated
+  0.00      0.04     0.00    28800     0.00     0.00  bestfit
+  0.00      0.04     0.00    28800     0.00     0.00  getbefore
+  0.00      0.04     0.00    28800     0.00     0.00  header_valid
+  0.00      0.04     0.00    28800     0.00     0.00  mm_free
+  0.00      0.04     0.00    28800     0.00     0.00  mm_malloc
+  0.00      0.04     0.00    28800     0.00     0.00  ptr
+  0.00      0.04     0.00    18576     0.00     0.00  mem_heap_hi
+  0.00      0.04     0.00    17328     0.00     0.00  __left_rotate__
+  0.00      0.04     0.00    16464     0.00     0.00  __find_min__
+  0.00      0.04     0.00    14436     0.00     0.00  __right_rotate__
+  0.00      0.04     0.00    13716     0.00     0.00  __double_black__
+  0.00      0.04     0.00     8568     0.00     0.00  mem_sbrk
+  0.00      0.04     0.00     4800     0.00     0.00  mem_heap_lo
+  0.00      0.04     0.00     2400     0.00     0.00  add_range
+  0.00      0.04     0.00     2400     0.00     0.00  remove_range
+  0.00      0.04     0.00       12     0.00     0.00  mem_reset_brk
+  0.00      0.04     0.00       12     0.00     0.00  mm_init
+  0.00      0.04     0.00       10     0.00     3.33  eval_mm_speed
+  0.00      0.04     0.00        1     0.00     0.00  clear_ranges
+  0.00      0.04     0.00        1     0.00     3.33  eval_mm_util
+  0.00      0.04     0.00        1     0.00     3.33  eval_mm_valid
+  0.00      0.04     0.00        1     0.00     0.00  free_trace
+  0.00      0.04     0.00        1     0.00    33.33  fsecs
+  0.00      0.04     0.00        1     0.00    33.33  ftimer_gettod
+  0.00      0.04     0.00        1     0.00     0.00  init_fsecs
+  0.00      0.04     0.00        1     0.00     0.00  mem_heapsize
+  0.00      0.04     0.00        1     0.00     0.00  mem_init
+  0.00      0.04     0.00        1     0.00     0.00  printresults
+  0.00      0.04     0.00        1     0.00     0.00  read_trace
+
+ %         the percentage of the total running time of the
+time       program used by this function.
+
+cumulative a running sum of the number of seconds accounted
+ seconds   for by this function and those listed above it.
+
+ self      the number of seconds accounted for by this
+seconds    function alone.  This is the major sort for this
+           listing.
+
+calls      the number of times this function was invoked, if
+           this function is profiled, else blank.
+
+ self      the average number of milliseconds spent in this
+ms/call    function per call, if this function is profiled,
+	   else blank.
+
+ total     the average number of milliseconds spent in this
+ms/call    function and its descendents per call, if this
+	   function is profiled, else blank.
+
+name       the name of the function.  This is the minor sort
+           for this listing. The index shows the location of
+	   the function in the gprof listing. If the index is
+	   in parenthesis it shows where it would appear in
+	   the gprof listing if it were to be printed.
+
+Copyright (C) 2012-2015 Free Software Foundation, Inc.
+
+Copying and distribution of this file, with or without modification,
+are permitted in any medium without royalty provided the copyright
+notice and this notice are preserved.
+
+		     Call graph (explanation follows)
+
+
+granularity: each sample hit covers 4 byte(s) for 25.00% of 0.04 seconds
+
+index % time    self  children    called     name
+                                                 <spontaneous>
+[1]    100.0    0.00    0.04                 main [1]
+                0.00    0.03       1/1           fsecs [3]
+                0.00    0.00       1/1           eval_mm_valid [14]
+                0.00    0.00       1/1           eval_mm_util [13]
+                0.00    0.00       1/1           init_fsecs [44]
+                0.00    0.00       1/1           mem_init [46]
+                0.00    0.00       1/1           read_trace [48]
+                0.00    0.00       1/1           free_trace [43]
+                0.00    0.00       1/1           printresults [47]
+-----------------------------------------------
+                0.00    0.03      10/10          ftimer_gettod [4]
+[2]     83.3    0.00    0.03      10         eval_mm_speed [2]
+                0.00    0.02   24000/28800       mm_free [5]
+                0.00    0.01   24000/28800       mm_malloc [8]
+                0.00    0.00      10/12          mm_init [19]
+                0.00    0.00      10/12          mem_reset_brk [41]
+-----------------------------------------------
+                0.00    0.03       1/1           main [1]
+[3]     83.3    0.00    0.03       1         fsecs [3]
+                0.00    0.03       1/1           ftimer_gettod [4]
+-----------------------------------------------
+                0.00    0.03       1/1           fsecs [3]
+[4]     83.3    0.00    0.03       1         ftimer_gettod [4]
+                0.00    0.03      10/10          eval_mm_speed [2]
+-----------------------------------------------
+                0.00    0.00    2400/28800       eval_mm_valid [14]
+                0.00    0.00    2400/28800       eval_mm_util [13]
+                0.00    0.02   24000/28800       eval_mm_speed [2]
+[5]     69.7    0.00    0.03   28800         mm_free [5]
+                0.00    0.02   28800/46980       insert_node [6]
+                0.01    0.00   57600/62688       isfree [10]
+                0.00    0.00   26724/46968       rm_node [12]
+                0.00    0.00   55524/2058600     getsize [20]
+                0.00    0.00   35292/82296       pack [27]
+                0.00    0.00   28800/28800       header_valid [34]
+                0.00    0.00   28800/28800       allocated [31]
+                0.00    0.00   28800/28800       getbefore [33]
+                0.00    0.00   28800/46992       getafter [30]
+                0.00    0.00   13776/18576       mem_heap_hi [36]
+-----------------------------------------------
+                0.00    0.01   18180/46980       mm_malloc [8]
+                0.00    0.02   28800/46980       mm_free [5]
+[6]     65.7    0.00    0.03   46980         insert_node [6]
+                0.01    0.01   46932/46932       __insert_node__ [7]
+                0.00    0.00   47028/140688      setright [11]
+                0.00    0.00   46980/145272      getroot [24]
+                0.00    0.00   46980/133536      setleft [25]
+                0.00    0.00   46980/68316       setnext [28]
+                0.00    0.00   46980/2058600     getsize [20]
+-----------------------------------------------
+                              303600             __insert_node__ [7]
+                0.01    0.01   46932/46932       insert_node [6]
+[7]     57.3    0.01    0.01   46932+303600  __insert_node__ [7]
+                0.01    0.00   38808/38808       __insert_balance__ [9]
+                0.00    0.00   22584/140688      setright [11]
+                0.00    0.00 1134504/2058600     getsize [20]
+                0.00    0.00  394608/887016      getright [21]
+                0.00    0.00  251400/659856      getleft [22]
+                0.00    0.00   16248/68316       setnext [28]
+                0.00    0.00   16224/133536      setleft [25]
+                0.00    0.00    8124/109548      getnext [26]
+                              303600             __insert_node__ [7]
+-----------------------------------------------
+                0.00    0.00    2400/28800       eval_mm_valid [14]
+                0.00    0.00    2400/28800       eval_mm_util [13]
+                0.00    0.01   24000/28800       eval_mm_speed [2]
+[8]     30.3    0.00    0.01   28800         mm_malloc [8]
+                0.00    0.01   18180/46980       insert_node [6]
+                0.00    0.00   20244/46968       rm_node [12]
+                0.00    0.00   46980/82296       pack [27]
+                0.00    0.00   28800/28800       bestfit [32]
+                0.00    0.00   28800/28800       ptr [35]
+                0.00    0.00   20244/2058600     getsize [20]
+                0.00    0.00   18180/46992       getafter [30]
+                0.00    0.00    8556/8568        mem_sbrk [37]
+-----------------------------------------------
+                                8772             __insert_balance__ [9]
+                0.01    0.00   38808/38808       __insert_node__ [7]
+[9]     28.3    0.01    0.00   38808+8772    __insert_balance__ [9]
+                0.00    0.00   10476/17328       __left_rotate__ [16]
+                0.00    0.00    8244/14436       __right_rotate__ [17]
+                0.00    0.00  146376/2058600     getsize [20]
+                0.00    0.00  119964/659856      getleft [22]
+                0.00    0.00   95160/267060      getparent [23]
+                0.00    0.00   62796/887016      getright [21]
+                0.00    0.00   47580/145272      getroot [24]
+                                8772             __insert_balance__ [9]
+-----------------------------------------------
+                0.00    0.00    5088/62688       rm_node [12]
+                0.01    0.00   57600/62688       mm_free [5]
+[10]    25.0    0.01    0.00   62688         isfree [10]
+-----------------------------------------------
+                0.00    0.00      24/140688      mm_init [19]
+                0.00    0.00   14436/140688      __right_rotate__ [17]
+                0.00    0.00   17328/140688      __left_rotate__ [16]
+                0.00    0.00   19500/140688      rm_node [12]
+                0.00    0.00   19788/140688      __rm_node__ [15]
+                0.00    0.00   22584/140688      __insert_node__ [7]
+                0.00    0.00   47028/140688      insert_node [6]
+[11]    25.0    0.01    0.00  140688         setright [11]
+-----------------------------------------------
+                0.00    0.00   20244/46968       mm_malloc [8]
+                0.00    0.00   26724/46968       mm_free [5]
+[12]    11.3    0.00    0.00   46968         rm_node [12]
+                0.00    0.00   38844/38844       __rm_node__ [15]
+                0.00    0.00   19500/140688      setright [11]
+                0.00    0.00    5088/62688       isfree [10]
+                0.00    0.00  113436/2058600     getsize [20]
+                0.00    0.00   66468/267060      getparent [23]
+                0.00    0.00   58344/659856      getleft [22]
+                0.00    0.00   55140/887016      getright [21]
+                0.00    0.00   46968/109548      getnext [26]
+                0.00    0.00   19500/51264       setparent [29]
+                0.00    0.00   19500/133536      setleft [25]
+                0.00    0.00   16464/16464       __find_min__ [97]
+                0.00    0.00    5088/68316       setnext [28]
+-----------------------------------------------
+                0.00    0.00       1/1           main [1]
+[13]     8.3    0.00    0.00       1         eval_mm_util [13]
+                0.00    0.00    2400/28800       mm_free [5]
+                0.00    0.00    2400/28800       mm_malloc [8]
+                0.00    0.00       1/12          mm_init [19]
+                0.00    0.00       1/12          mem_reset_brk [41]
+                0.00    0.00       1/1           mem_heapsize [45]
+-----------------------------------------------
+                0.00    0.00       1/1           main [1]
+[14]     8.3    0.00    0.00       1         eval_mm_valid [14]
+                0.00    0.00    2400/28800       mm_free [5]
+                0.00    0.00    2400/28800       mm_malloc [8]
+                0.00    0.00       1/12          mm_init [19]
+                0.00    0.00    2400/2400        add_range [39]
+                0.00    0.00    2400/2400        remove_range [40]
+                0.00    0.00       1/12          mem_reset_brk [41]
+                0.00    0.00       1/1           clear_ranges [42]
+-----------------------------------------------
+                0.00    0.00   38844/38844       rm_node [12]
+[15]     5.8    0.00    0.00   38844         __rm_node__ [15]
+                0.00    0.00   19788/140688      setright [11]
+                0.00    0.00   13716/13716       __double_black__ [18]
+                0.00    0.00   86364/2058600     getsize [20]
+                0.00    0.00   41556/659856      getleft [22]
+                0.00    0.00   38844/267060      getparent [23]
+                0.00    0.00   36132/887016      getright [21]
+                0.00    0.00   19056/133536      setleft [25]
+-----------------------------------------------
+                0.00    0.00    6852/17328       __double_black__ [18]
+                0.00    0.00   10476/17328       __insert_balance__ [9]
+[16]     3.1    0.00    0.00   17328         __left_rotate__ [16]
+                0.00    0.00   17328/140688      setright [11]
+                0.00    0.00   34656/267060      getparent [23]
+                0.00    0.00   17328/659856      getleft [22]
+                0.00    0.00   17328/51264       setparent [29]
+                0.00    0.00   17328/133536      setleft [25]
+-----------------------------------------------
+                0.00    0.00    6192/14436       __double_black__ [18]
+                0.00    0.00    8244/14436       __insert_balance__ [9]
+[17]     2.6    0.00    0.00   14436         __right_rotate__ [17]
+                0.00    0.00   14436/140688      setright [11]
+                0.00    0.00   28872/267060      getparent [23]
+                0.00    0.00   14436/887016      getright [21]
+                0.00    0.00   14436/51264       setparent [29]
+                0.00    0.00   14436/133536      setleft [25]
+-----------------------------------------------
+                                8196             __double_black__ [18]
+                0.00    0.00   13716/13716       __rm_node__ [15]
+[18]     2.3    0.00    0.00   13716+8196    __double_black__ [18]
+                0.00    0.00    6852/17328       __left_rotate__ [16]
+                0.00    0.00    6192/14436       __right_rotate__ [17]
+                0.00    0.00   67632/659856      getleft [22]
+                0.00    0.00   48480/2058600     getsize [20]
+                0.00    0.00   32676/887016      getright [21]
+                0.00    0.00   21912/145272      getroot [24]
+                0.00    0.00    3060/267060      getparent [23]
+                                8196             __double_black__ [18]
+-----------------------------------------------
+                0.00    0.00       1/12          eval_mm_valid [14]
+                0.00    0.00       1/12          eval_mm_util [13]
+                0.00    0.00      10/12          eval_mm_speed [2]
+[19]     0.0    0.00    0.00      12         mm_init [19]
+                0.00    0.00      24/140688      setright [11]
+                0.00    0.00      24/82296       pack [27]
+                0.00    0.00      12/8568        mem_sbrk [37]
+                0.00    0.00      12/46992       getafter [30]
+                0.00    0.00      12/133536      setleft [25]
+-----------------------------------------------
+                0.00    0.00   20244/2058600     mm_malloc [8]
+                0.00    0.00   28800/2058600     header_valid [34]
+                0.00    0.00   46980/2058600     insert_node [6]
+                0.00    0.00   46992/2058600     getafter [30]
+                0.00    0.00   48480/2058600     __double_black__ [18]
+                0.00    0.00   55524/2058600     mm_free [5]
+                0.00    0.00   86364/2058600     __rm_node__ [15]
+                0.00    0.00  102528/2058600     setparent [29]
+                0.00    0.00  113436/2058600     rm_node [12]
+                0.00    0.00  146376/2058600     __insert_balance__ [9]
+                0.00    0.00  228372/2058600     __tree_search__ [96]
+                0.00    0.00 1134504/2058600     __insert_node__ [7]
+[20]     0.0    0.00    0.00 2058600         getsize [20]
+-----------------------------------------------
+                0.00    0.00   14436/887016      __right_rotate__ [17]
+                0.00    0.00   32676/887016      __double_black__ [18]
+                0.00    0.00   36132/887016      __rm_node__ [15]
+                0.00    0.00   55140/887016      rm_node [12]
+                0.00    0.00   62796/887016      __insert_balance__ [9]
+                0.00    0.00  145272/887016      getroot [24]
+                0.00    0.00  145956/887016      __tree_search__ [96]
+                0.00    0.00  394608/887016      __insert_node__ [7]
+[21]     0.0    0.00    0.00  887016         getright [21]
+-----------------------------------------------
+                0.00    0.00   17328/659856      __left_rotate__ [16]
+                0.00    0.00   41556/659856      __rm_node__ [15]
+                0.00    0.00   50016/659856      __find_min__ [97]
+                0.00    0.00   53616/659856      __tree_search__ [96]
+                0.00    0.00   58344/659856      rm_node [12]
+                0.00    0.00   67632/659856      __double_black__ [18]
+                0.00    0.00  119964/659856      __insert_balance__ [9]
+                0.00    0.00  251400/659856      __insert_node__ [7]
+[22]     0.0    0.00    0.00  659856         getleft [22]
+-----------------------------------------------
+                0.00    0.00    3060/267060      __double_black__ [18]
+                0.00    0.00   28872/267060      __right_rotate__ [17]
+                0.00    0.00   34656/267060      __left_rotate__ [16]
+                0.00    0.00   38844/267060      __rm_node__ [15]
+                0.00    0.00   66468/267060      rm_node [12]
+                0.00    0.00   95160/267060      __insert_balance__ [9]
+[23]     0.0    0.00    0.00  267060         getparent [23]
+-----------------------------------------------
+                0.00    0.00   21912/145272      __double_black__ [18]
+                0.00    0.00   28800/145272      bestfit [32]
+                0.00    0.00   46980/145272      insert_node [6]
+                0.00    0.00   47580/145272      __insert_balance__ [9]
+[24]     0.0    0.00    0.00  145272         getroot [24]
+                0.00    0.00  145272/887016      getright [21]
+-----------------------------------------------
+                0.00    0.00      12/133536      mm_init [19]
+                0.00    0.00   14436/133536      __right_rotate__ [17]
+                0.00    0.00   16224/133536      __insert_node__ [7]
+                0.00    0.00   17328/133536      __left_rotate__ [16]
+                0.00    0.00   19056/133536      __rm_node__ [15]
+                0.00    0.00   19500/133536      rm_node [12]
+                0.00    0.00   46980/133536      insert_node [6]
+[25]     0.0    0.00    0.00  133536         setleft [25]
+-----------------------------------------------
+                0.00    0.00    8124/109548      __insert_node__ [7]
+                0.00    0.00   46968/109548      rm_node [12]
+                0.00    0.00   54456/109548      __tree_search__ [96]
+[26]     0.0    0.00    0.00  109548         getnext [26]
+-----------------------------------------------
+                0.00    0.00      24/82296       mm_init [19]
+                0.00    0.00   35292/82296       mm_free [5]
+                0.00    0.00   46980/82296       mm_malloc [8]
+[27]     0.0    0.00    0.00   82296         pack [27]
+-----------------------------------------------
+                0.00    0.00    5088/68316       rm_node [12]
+                0.00    0.00   16248/68316       __insert_node__ [7]
+                0.00    0.00   46980/68316       insert_node [6]
+[28]     0.0    0.00    0.00   68316         setnext [28]
+-----------------------------------------------
+                0.00    0.00   14436/51264       __right_rotate__ [17]
+                0.00    0.00   17328/51264       __left_rotate__ [16]
+                0.00    0.00   19500/51264       rm_node [12]
+[29]     0.0    0.00    0.00   51264         setparent [29]
+                0.00    0.00  102528/2058600     getsize [20]
+-----------------------------------------------
+                0.00    0.00      12/46992       mm_init [19]
+                0.00    0.00   18180/46992       mm_malloc [8]
+                0.00    0.00   28800/46992       mm_free [5]
+[30]     0.0    0.00    0.00   46992         getafter [30]
+                0.00    0.00   46992/2058600     getsize [20]
+-----------------------------------------------
+                0.00    0.00   28800/28800       mm_free [5]
+[31]     0.0    0.00    0.00   28800         allocated [31]
+-----------------------------------------------
+                0.00    0.00   28800/28800       mm_malloc [8]
+[32]     0.0    0.00    0.00   28800         bestfit [32]
+                0.00    0.00   28800/145272      getroot [24]
+                0.00    0.00   28800/28800       __tree_search__ [96]
+-----------------------------------------------
+                0.00    0.00   28800/28800       mm_free [5]
+[33]     0.0    0.00    0.00   28800         getbefore [33]
+-----------------------------------------------
+                0.00    0.00   28800/28800       mm_free [5]
+[34]     0.0    0.00    0.00   28800         header_valid [34]
+                0.00    0.00   28800/2058600     getsize [20]
+-----------------------------------------------
+                0.00    0.00   28800/28800       mm_malloc [8]
+[35]     0.0    0.00    0.00   28800         ptr [35]
+-----------------------------------------------
+                0.00    0.00    4800/18576       add_range [39]
+                0.00    0.00   13776/18576       mm_free [5]
+[36]     0.0    0.00    0.00   18576         mem_heap_hi [36]
+-----------------------------------------------
+                0.00    0.00      12/8568        mm_init [19]
+                0.00    0.00    8556/8568        mm_malloc [8]
+[37]     0.0    0.00    0.00    8568         mem_sbrk [37]
+-----------------------------------------------
+                0.00    0.00    4800/4800        add_range [39]
+[38]     0.0    0.00    0.00    4800         mem_heap_lo [38]
+-----------------------------------------------
+                0.00    0.00    2400/2400        eval_mm_valid [14]
+[39]     0.0    0.00    0.00    2400         add_range [39]
+                0.00    0.00    4800/4800        mem_heap_lo [38]
+                0.00    0.00    4800/18576       mem_heap_hi [36]
+-----------------------------------------------
+                0.00    0.00    2400/2400        eval_mm_valid [14]
+[40]     0.0    0.00    0.00    2400         remove_range [40]
+-----------------------------------------------
+                0.00    0.00       1/12          eval_mm_valid [14]
+                0.00    0.00       1/12          eval_mm_util [13]
+                0.00    0.00      10/12          eval_mm_speed [2]
+[41]     0.0    0.00    0.00      12         mem_reset_brk [41]
+-----------------------------------------------
+                0.00    0.00       1/1           eval_mm_valid [14]
+[42]     0.0    0.00    0.00       1         clear_ranges [42]
+-----------------------------------------------
+                0.00    0.00       1/1           main [1]
+[43]     0.0    0.00    0.00       1         free_trace [43]
+-----------------------------------------------
+                0.00    0.00       1/1           main [1]
+[44]     0.0    0.00    0.00       1         init_fsecs [44]
+-----------------------------------------------
+                0.00    0.00       1/1           eval_mm_util [13]
+[45]     0.0    0.00    0.00       1         mem_heapsize [45]
+-----------------------------------------------
+                0.00    0.00       1/1           main [1]
+[46]     0.0    0.00    0.00       1         mem_init [46]
+-----------------------------------------------
+                0.00    0.00       1/1           main [1]
+[47]     0.0    0.00    0.00       1         printresults [47]
+-----------------------------------------------
+                0.00    0.00       1/1           main [1]
+[48]     0.0    0.00    0.00       1         read_trace [48]
+-----------------------------------------------
+                              199572             __tree_search__ [96]
+                0.00    0.00   28800/28800       bestfit [32]
+[96]     0.0    0.00    0.00   28800+199572  __tree_search__ [96]
+                0.00    0.00  228372/2058600     getsize [20]
+                0.00    0.00  145956/887016      getright [21]
+                0.00    0.00   54456/109548      getnext [26]
+                0.00    0.00   53616/659856      getleft [22]
+                              199572             __tree_search__ [96]
+-----------------------------------------------
+                0.00    0.00   16464/16464       rm_node [12]
+[97]     0.0    0.00    0.00   16464         __find_min__ [97]
+                0.00    0.00   50016/659856      getleft [22]
+-----------------------------------------------
+
+ This table describes the call tree of the program, and was sorted by
+ the total amount of time spent in each function and its children.
+
+ Each entry in this table consists of several lines.  The line with the
+ index number at the left hand margin lists the current function.
+ The lines above it list the functions that called this function,
+ and the lines below it list the functions this one called.
+ This line lists:
+     index	A unique number given to each element of the table.
+		Index numbers are sorted numerically.
+		The index number is printed next to every function name so
+		it is easier to look up where the function is in the table.
+
+     % time	This is the percentage of the `total' time that was spent
+		in this function and its children.  Note that due to
+		different viewpoints, functions excluded by options, etc,
+		these numbers will NOT add up to 100%.
+
+     self	This is the total amount of time spent in this function.
+
+     children	This is the total amount of time propagated into this
+		function by its children.
+
+     called	This is the number of times the function was called.
+		If the function called itself recursively, the number
+		only includes non-recursive calls, and is followed by
+		a `+' and the number of recursive calls.
+
+     name	The name of the current function.  The index number is
+		printed after it.  If the function is a member of a
+		cycle, the cycle number is printed between the
+		function's name and the index number.
+
+
+ For the function's parents, the fields have the following meanings:
+
+     self	This is the amount of time that was propagated directly
+		from the function into this parent.
+
+     children	This is the amount of time that was propagated from
+		the function's children into this parent.
+
+     called	This is the number of times this parent called the
+		function `/' the total number of times the function
+		was called.  Recursive calls to the function are not
+		included in the number after the `/'.
+
+     name	This is the name of the parent.  The parent's index
+		number is printed after it.  If the parent is a
+		member of a cycle, the cycle number is printed between
+		the name and the index number.
+
+ If the parents of the function cannot be determined, the word
+ `<spontaneous>' is printed in the `name' field, and all the other
+ fields are blank.
+
+ For the function's children, the fields have the following meanings:
+
+     self	This is the amount of time that was propagated directly
+		from the child into the function.
+
+     children	This is the amount of time that was propagated from the
+		child's children to the function.
+
+     called	This is the number of times the function called
+		this child `/' the total number of times the child
+		was called.  Recursive calls by the child are not
+		listed in the number after the `/'.
+
+     name	This is the name of the child.  The child's index
+		number is printed after it.  If the child is a
+		member of a cycle, the cycle number is printed
+		between the name and the index number.
+
+ If there are any cycles (circles) in the call graph, there is an
+ entry for the cycle-as-a-whole.  This entry shows who called the
+ cycle (as parents) and the members of the cycle (as children.)
+ The `+' recursive calls entry shows the number of function calls that
+ were internal to the cycle, and the calls entry for each member shows,
+ for that member, how many times it was called from other members of
+ the cycle.
+
+Copyright (C) 2012-2015 Free Software Foundation, Inc.
+
+Copying and distribution of this file, with or without modification,
+are permitted in any medium without royalty provided the copyright
+notice and this notice are preserved.
+
+Index by function name
+
+  [18] __double_black__ (mm.c) [4] ftimer_gettod          [41] mem_reset_brk
+  [97] __find_min__ (mm.c)    [30] getafter (mm.c)        [37] mem_sbrk
+   [9] __insert_balance__ (mm.c) [33] getbefore (mm.c)     [5] mm_free
+   [7] __insert_node__ (mm.c) [22] getleft (mm.c)         [19] mm_init
+  [16] __left_rotate__ (mm.c) [26] getnext (mm.c)          [8] mm_malloc
+  [17] __right_rotate__ (mm.c) [23] getparent (mm.c)      [27] pack (mm.c)
+  [15] __rm_node__ (mm.c)     [21] getright (mm.c)        [47] printresults (mdriver.c)
+  [96] __tree_search__ (mm.c) [24] getroot (mm.c)         [35] ptr (mm.c)
+  [39] add_range (mdriver.c)  [20] getsize (mm.c)         [48] read_trace (mdriver.c)
+  [31] allocated (mm.c)       [34] header_valid (mm.c)    [40] remove_range (mdriver.c)
+  [32] bestfit (mm.c)         [44] init_fsecs             [12] rm_node (mm.c)
+  [42] clear_ranges (mdriver.c) [6] insert_node (mm.c)    [25] setleft (mm.c)
+   [2] eval_mm_speed (mdriver.c) [10] isfree (mm.c)       [28] setnext (mm.c)
+  [13] eval_mm_util (mdriver.c) [36] mem_heap_hi          [29] setparent (mm.c)
+  [14] eval_mm_valid (mdriver.c) [38] mem_heap_lo         [11] setright (mm.c)
+  [43] free_trace (mdriver.c) [45] mem_heapsize
+   [3] fsecs                  [46] mem_init
