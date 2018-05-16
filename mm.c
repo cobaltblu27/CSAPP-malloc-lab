@@ -194,6 +194,8 @@ void *mm_malloc(size_t size) {
         newsize = 3 * ALIGNMENT;
     p = bestfit(newsize);
     if (p == lastblk) {
+        if(newsize < 64*ALIGNMENT)
+            newsize = ALIGN(newsize*8/7);
         block_t *new = mem_sbrk((int) newsize);
         pack(new, newsize, ALC);
         if (CHECK)
