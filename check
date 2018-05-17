@@ -7,4 +7,5 @@
 ./mdriver -f traces/random2-bal.rep
 ./mdriver -f traces/binary-bal.rep
 ./mdriver -f traces/binary2-bal.rep
-
+./mdriver -f traces/realloc-bal.rep
+./mdriver -f traces/realloc2-bal.rep

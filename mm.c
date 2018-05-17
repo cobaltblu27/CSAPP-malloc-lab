@@ -170,23 +170,26 @@ int mm_init(void) {
 
 void *mm_malloc(size_t size) {
 //    printf("malloc %x\n", (unsigned int) size);
-
-    if (size < 64 * ALIGNMENT) {
+    size_t newsize, oldsize;
+    if (size < 64 * ALIGNMENT) {//round to nearest power of 2
         size--;
         size |= size >> 1;
         size |= size >> 2;
         size |= size >> 4;
         size |= size >> 8;
-        size++;
+        size = size + 1;
     }
-    size_t newsize = ALIGN(size + ALIGNMENT);
-    size_t oldsize;
+    newsize = ALIGN(size + ALIGNMENT);
     block_t *p;
     if (newsize < 3 * ALIGNMENT)
         newsize = 3 * ALIGNMENT;
     p = bestfit(newsize);
     if (p == lastblk) {
         block_t *new = mem_sbrk((int) newsize);
+        if(new == (void *)-1){
+            printf("sbrk failed!\n");
+            Exit(0);
+        }
         pack(new, newsize, ALC);
         if (CHECK)
             mm_check();
@@ -262,6 +265,8 @@ void *mm_realloc(void *ptr, size_t size) {
     size_t copySize;
 
     newptr = mm_malloc(size);
+    if(CHECK)
+        mm_check();
     if (newptr == NULL)
         return NULL;
     copySize = *(size_t *) ((char *) oldptr - SIZE_T_SIZE);
@@ -269,6 +274,8 @@ void *mm_realloc(void *ptr, size_t size) {
         copySize = size;
     memcpy(newptr, oldptr, copySize);
     mm_free(oldptr);
+    if(CHECK)
+        mm_check();
     return newptr;
 }
 
