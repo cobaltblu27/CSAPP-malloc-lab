@@ -1,3 +1,0 @@
-/home/cobalt/Desktop/Classfiles/ss/malloclab-handout/cmake-build-debug/CMakeFiles/rebuild_cache.dir
-/home/cobalt/Desktop/Classfiles/ss/malloclab-handout/cmake-build-debug/CMakeFiles/edit_cache.dir
-/home/cobalt/Desktop/Classfiles/ss/malloclab-handout/cmake-build-debug/CMakeFiles/malloclab_handout.dir
