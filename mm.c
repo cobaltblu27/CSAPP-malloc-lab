@@ -77,9 +77,6 @@
 #define BLACK 0x2
 
 /* makes header and footer from pointer, size and allocation bit */
-/*
- * TODO implement realloc
- */
 
 extern int verbose;
 
@@ -101,6 +98,7 @@ typedef struct block {
 
 static block_t *startblk;
 static block_t *lastblk;
+static block_t *heap_end_blk;
 
 //fill in header and footer
 static inline void pack(block_t *blk, size_t size, int alloc);
@@ -169,7 +167,7 @@ static void print_tree(block_t *node);
 
 
 int mm_init(void) {
-    void *p = mem_sbrk(ALIGNMENT * 6 + 4);
+    void *p = mem_sbrk(4 + ALIGNMENT * 6 + ALIGNMENT * 10);
     if (p == (void *) -1)
         return -1;
 
@@ -183,10 +181,17 @@ int mm_init(void) {
     //epilogue block, only consists of header and footer
     //epilogue block size is 0
     lastblk = p;
-    pack(lastblk, ALIGNMENT * 3, ALC | BLACK);
+    pack(lastblk, ALIGNMENT * 3, ALC);
+    SETCOLOR(lastblk, BLACK);
     setright(startblk, lastblk);
-    setleft(lastblk, lastblk);
-    setright(lastblk, lastblk);
+    p = getafter(p);
+    pack(p, ALIGNMENT * 10, FREE); //initial root of tree
+    SETCOLOR(p, BLACK);
+    setright(startblk, p);
+    setright(p, lastblk);
+    setleft(p, lastblk);
+    setnext(p, lastblk);
+    heap_end_blk = p;
     return 0;
 }
 
@@ -215,6 +220,9 @@ void *mm_malloc(size_t size) {
         newsize = 3 * ALIGNMENT;
     p = bestfit(newsize);
     if (p == lastblk) {
+        if(isfree(heap_end_blk)){
+
+        }
         block_t *new_blk = mem_sbrk((int) newsize);
         if(new_blk == (void *)-1){
             printf("sbrk failed!\n");
@@ -338,7 +346,6 @@ int treesize(block_t *root) {
 }
 
 void mm_check() {
-    void *heap_end = mem_heap_hi();
     int freeblks = 0;
     int freelistblks = 0;
 
