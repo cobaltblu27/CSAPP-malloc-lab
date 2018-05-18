@@ -54,7 +54,7 @@
 #include "mm.h"
 #include "memlib.h"
 
-#define CHECK 1
+#define CHECK 0
 #define PRINTBLK 1
 /* single word (4) or double word (8) alignment */
 #define ALIGNMENT 8
@@ -98,7 +98,6 @@ typedef struct block {
 
 static block_t *startblk;
 static block_t *lastblk;
-static block_t *heap_end_blk;
 
 //fill in header and footer
 static inline void pack(block_t *blk, size_t size, int alloc);
@@ -191,7 +190,6 @@ int mm_init(void) {
     setright(p, lastblk);
     setleft(p, lastblk);
     setnext(p, lastblk);
-    heap_end_blk = p;
     return 0;
 }
 
@@ -220,10 +218,18 @@ void *mm_malloc(size_t size) {
         newsize = 3 * ALIGNMENT;
     p = bestfit(newsize);
     if (p == lastblk) {
-        if(isfree(heap_end_blk)){
-
+        block_t *new_blk;
+        block_t *endblock = getbefore(mem_heap_hi() + 1);
+        if (isfree(endblock)){
+            size_t extend = newsize - getsize(endblock);
+            mem_sbrk((int) extend);
+            rm_node(endblock);
+            pack(endblock, newsize, ALC);
+            if (CHECK)
+                mm_check();
+            return PTR(endblock);
         }
-        block_t *new_blk = mem_sbrk((int) newsize);
+        new_blk = mem_sbrk((int) newsize);
         if(new_blk == (void *)-1){
             printf("sbrk failed!\n");
             Exit(0);
@@ -241,7 +247,6 @@ void *mm_malloc(size_t size) {
         rm_node(p);
         block_t *after;
         pack(p, newsize, ALC);
-
         //split
         after = getafter(p);
 
@@ -471,9 +476,9 @@ int countfreelist() {
         if (isfree(p)) {
             cnt++;
             if (PRINTBLK)
-                printf("(f,%x) ", (unsigned int) getsize(p));
+                printf("(f,%d) ", (unsigned int) getsize(p));
         } else if (PRINTBLK)
-            printf("(a,%x) ", (unsigned int) getsize(p));
+            printf("(a,%d) ", (unsigned int) getsize(p));
         p = getafter(p);
     }
     if (PRINTBLK)
