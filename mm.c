@@ -185,15 +185,15 @@ void *mm_malloc(size_t size) {
         newsize = 3 * ALIGNMENT;
     p = bestfit(newsize);
     if (p == lastblk) {
-        block_t *new = mem_sbrk((int) newsize);
-        if(new == (void *)-1){
+        block_t *new_blk = mem_sbrk((int) newsize);
+        if(new_blk == (void *)-1){
             printf("sbrk failed!\n");
             Exit(0);
         }
-        pack(new, newsize, ALC);
+        pack(new_blk, newsize, ALC);
         if (CHECK)
             mm_check();
-        return PTR(new);
+        return PTR(new_blk);
     }
     oldsize = getsize(p);
     if (oldsize - newsize < ALIGNMENT * 3) {
@@ -259,23 +259,17 @@ void mm_free(void *ptr) {
 /*
  * mm_realloc - Implemented simply in terms of mm_malloc and mm_free
  */
-void *mm_realloc(void *ptr, size_t size) {
-    void *oldptr = ptr;
+void *mm_realloc(void *ptr, size_t size){
+    block_t *oldblk = ptr - sizeof(unsigned int);
     void *newptr;
     size_t copySize;
 
     newptr = mm_malloc(size);
-    if(CHECK)
-        mm_check();
-    if (newptr == NULL)
-        return NULL;
-    copySize = *(size_t *) ((char *) oldptr - SIZE_T_SIZE);
+    copySize = getsize(oldblk);
     if (size < copySize)
         copySize = size;
-    memcpy(newptr, oldptr, copySize);
-    mm_free(oldptr);
-    if(CHECK)
-        mm_check();
+    memcpy(newptr, ptr, copySize);
+    mm_free(ptr);
     return newptr;
 }
 
