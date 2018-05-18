@@ -204,15 +204,16 @@ int mm_init(void) {
 void *mm_malloc(size_t size) {
 //    printf("malloc %x\n", (unsigned int) size);
     size_t newsize, oldsize;
-    if (size < 64 * ALIGNMENT) {//round to nearest power of 2
-        size--;
-        size |= size >> 1;
-        size |= size >> 2;
-        size |= size >> 4;
-        size |= size >> 8;
-        size = size + 1;
+    size_t rsize = size;
+    if (rsize < 64 * ALIGNMENT) {//round to nearest power of 2
+        rsize--;
+        rsize |= rsize >> 1;
+        rsize |= rsize >> 2;
+        rsize |= rsize >> 4;
+        rsize |= rsize >> 8;
+        rsize = rsize + 1;
     }
-    newsize = ALIGN(size + ALIGNMENT);
+    newsize = ALIGN(rsize + ALIGNMENT);
     block_t *p;
     if (newsize < 3 * ALIGNMENT)
         newsize = 3 * ALIGNMENT;
@@ -220,7 +221,7 @@ void *mm_malloc(size_t size) {
     if (p == lastblk) {
         block_t *new_blk;
         block_t *endblock = getbefore(mem_heap_hi() + 1);
-        if (isfree(endblock)){
+        if (isfree(endblock) && getafter(lastblk) != endblock){
             size_t extend = newsize - getsize(endblock);
             mem_sbrk((int) extend);
             rm_node(endblock);
