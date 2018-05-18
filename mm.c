@@ -54,8 +54,8 @@
 #include "mm.h"
 #include "memlib.h"
 
-#define CHECK 0
-#define PRINTBLK 0
+#define CHECK 1
+#define PRINTBLK 1
 /* single word (4) or double word (8) alignment */
 #define ALIGNMENT 8
 
@@ -302,12 +302,11 @@ void *mm_realloc(void *ptr, size_t size) {
     void *newptr;
     size_t oldSize = getsize(oldblk) - 2 * sizeof(unsigned int);
 
-    if ((void *) oldblk->next > mem_heap_hi()) {
+    if ((void *) getafter(oldblk) > mem_heap_hi() && oldSize < size) {
         int extend = ALIGN(size - oldSize);
-        void *p = mem_sbrk(size);
+        void *p = mem_sbrk(extend);
         if(p == (void *)-1){
-            printf("sbrk failed!\n");
-            Exit(0);
+            return NULL;
         }
         pack(oldblk, extend + getsize(oldblk), ALC);
         return ptr;
@@ -320,7 +319,7 @@ void *mm_realloc(void *ptr, size_t size) {
         }
 
         //if realloc is called frequently, it might be called again
-        newptr = mm_malloc(size + 512);
+        newptr = mm_malloc(size);
         memcpy(newptr, ptr, oldSize);
         mm_free(ptr);
         return newptr;
@@ -346,9 +345,6 @@ void mm_check() {
     //checking heap start to end
 
     freeblks = countfreelist();
-
-    if (PRINTBLK)
-        printf("%p(end)\n", heap_end);
 
     freelistblks = checkfreetree(getroot());
     if (freeblks != freelistblks) {
