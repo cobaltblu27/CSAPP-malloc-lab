@@ -1,13 +1,49 @@
 /*
- * mm-naive.c - The fastest, least memory-efficient malloc package.
+ * mm.c - malloc implemented using segregated list and red-black tree
+ * 
+ * this package is implemented mainly with segregated list, which consists of
+ * free block following structure described below. 
+ * While this package is implemented with segregated list, the heads of the linked
+ * lists are managed using red-black tree. Every node in list will consist of
+ * free blocks of the same size.
+ * The front and back part of the block are header and footer. Both contains 
+ * size and three flags, which are contained in single unsigned int using 
+ * bitwise OR. Three flags are free flag, black flag, and visited flag. 
+ * Free flag show that the block is currently free, and black flag show that 
+ * current block is free and is a black node in red-black tree. Visited flags
+ * are always 0, but is used to mark visited node when traversing tree in 
+ * mm_check. It will be used to check if tree is connected appropriately when 
+ * debugging.
+ * In the payload area, free blocks will contain four pointer, left, right, parent
+ * and next, respectively. Left and right pointer connects to left and right node
+ * of the tree, and will point to epilogue block if it doesn't exist. Parent 
+ * pointer will point to parent node, or previous node if the block is not the head
+ * node in segregated list. Next block will point to next block in segregated list,
+ * and will point to epilogue block if it doesn't exist.
  *
- * In this naive approach, a block is allocated by simply incrementing
- * the brk pointer.  A block is pure payload. There are no headers or
- * footers.  Blocks are never coalesced or reused. Realloc is
- * implemented directly using mm_malloc and mm_free.
+ ************************
+ * Free block structure
  *
- * NOTE TO STUDENTS: Replace this header comment with your own header
- * comment that gives a high level description of your solution.
+ * 32              0
+ * -----------------     <- void *p
+ * |   size    |a/f| <- stores size of entire block and flags(visited, r/b, a/f)
+ * |---------------| __  <- return value; aligned to 8-byte
+ * | left ptr      |   |
+ * |---------------|
+ * | right ptr     |  old payload
+ * |---------------|
+ * | parent ptr    | __| <- parent node in tree or previous node in seg-list
+ * |---------------|
+ * | next ptr      | <- used to point to block with same size(like seg-list)
+ * |---------------|
+ * | payload       |
+ * |---------------|
+ * | padding       |
+ * |---------------|
+ * |   size    |a/f|
+ * -----------------
+ ************************
+ * 
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -41,30 +77,6 @@
 #define BLACK 0x2
 
 /* makes header and footer from pointer, size and allocation bit */
-
-/***********************
- * Free block structure
- *
- * 32              0
- * -----------------     <- void *p
- * |   size    |a/f| <- stores size of entire block and flags(visited, r/b, a/f)
- * |---------------| __  <- return value; aligned to 8-byte
- * | prev ptr      |   |
- * |---------------|
- * | next ptr      |  old payload
- * |---------------|
- * | parent ptr    | __| <- parent node in tree or previous node in seg-list
- * |---------------|
- * | next ptr      | <- used to point to block with same size(like seg-list)
- * |---------------|
- * | payload       |
- * |---------------|
- * | padding       |
- * |---------------|
- * |   size    |a/f|
- * -----------------
-************************/
-
 /*
  * TODO implement realloc
  */
@@ -93,8 +105,10 @@ static block_t *lastblk;
 //fill in header and footer
 static inline void pack(block_t *blk, size_t size, int alloc);
 
+//check if header is valid
 static inline int header_valid(void *blk);
 
+//get size of block(including header and footer)
 static inline size_t getsize(block_t *blk);
 
 //set left node, set to lastblk if none
@@ -106,6 +120,7 @@ static inline void setright(block_t *blk, block_t *rightnode);
 //set parent node
 static inline void setparent(block_t *blk, block_t *parentnode);
 
+//set next block in linked list
 static inline void setnext(block_t *blk, block_t *nextnode);
 
 //get adjacent block right after
@@ -129,16 +144,27 @@ static block_t *bestfit(size_t size);
 //remove node
 static void rm_node(block_t *target);
 
+//insert node into the red-black tree
 static void insert_node(block_t *node);
 
+//count the number of free blocks by traversing heap area
+static int countfreelist();
+
+//count the number of free blocks by traversing tree
 static int checkfreetree(block_t *root);
 
+//check if leaf node has same black height
 static int checkblackheight(block_t *root);
 
+//when mm_check finds an error, this function will print what the tree looks like
 static void print_tree(block_t *node);
 
 /*
  * mm_init - initialize the malloc package.
+ *
+ * First and second block will be prologue and epilogue block. Prologue block will
+ * be used to keep track of root node, and epilogue block will be used as NIL block
+ * in red-black tree. Color of epilogue block will be marked as black.
  */
 
 
@@ -166,6 +192,10 @@ int mm_init(void) {
 
 /*
  * mm_malloc
+ *
+ * In malloc, function will put padding in size, and allocate block from free list
+ * or sbrk. If size is small, size will be rounded up to nearest power of 2 to 
+ * utilize coalescing. 
  */
 
 void *mm_malloc(size_t size) {
@@ -217,7 +247,10 @@ void *mm_malloc(size_t size) {
 
 /*
  * mm_free
- * using red-black tree
+ * Free will make new free block, and store them in segregated list. insert_node
+ * function will the put the node in tree. If adjacent blocks are free, 
+ * new free block will be coalesced with them. Adjacent blocks will be removed from
+ * tree, coalesced, and then will be put back into the tree.
  */
 void mm_free(void *ptr) {
     block_t *p;//points to header
@@ -257,21 +290,30 @@ void mm_free(void *ptr) {
 }
 
 /*
- * mm_realloc - Implemented simply in terms of mm_malloc and mm_free
+ * mm_realloc 
  */
 void *mm_realloc(void *ptr, size_t size){
     block_t *oldblk = ptr - sizeof(unsigned int);
     void *newptr;
-    size_t copySize;
+    size_t oldSize = getsize(oldblk) - 2 * sizeof(unsigned int);
 
-    newptr = mm_malloc(size);
-    copySize = getsize(oldblk);
-    if (size < copySize)
-        copySize = size;
-    memcpy(newptr, ptr, copySize);
-    mm_free(ptr);
-    return newptr;
+    if((void *) oldblk->next > mem_heap_hi()){
+        int extend = ALIGN(size - oldSize);
+        void *p = mem_sbrk(size);
+        if(p == (void *)-1){
+            printf("sbrk failed!\n");
+            Exit(0);
+        }
+        pack(oldblk, extend + getsize(oldblk), ALC);
+    } else if(oldSize < size){
+        newptr = mm_malloc(size + 1024);
+        memcpy(newptr, ptr, oldSize);
+        mm_free(ptr);
+        return newptr;
+    }
+    return ptr;
 }
+   
 
 int treesize(block_t *root) {
     if (root == lastblk)
@@ -283,39 +325,13 @@ int treesize(block_t *root) {
 }
 
 void mm_check() {
-    void *p = startblk;
     void *heap_end = mem_heap_hi();
     int freeblks = 0;
     int freelistblks = 0;
 
     //checking heap start to end
 
-    if (PRINTBLK)
-        printf("mm_check - block headers: ");
-    while (p < heap_end) {//check if its end of heap
-        if (PRINTBLK)
-            printf("%p", p);
-        //check if p is valid
-        if (p < mem_heap_lo() || p > mem_heap_hi() || (long) (p + 4) & 0x7) {
-            blkstatus(p);
-            Exit(1);
-        }
-
-        //check if header is valid
-        if (!header_valid(p)) {
-            blkstatus(p);
-            Exit(1);
-        }
-
-        if (isfree(p)) {
-            freeblks++;
-            if (PRINTBLK)
-                printf("(f,%x) ", (unsigned int) getsize(p));
-        } else if (PRINTBLK)
-            printf("(a,%x) ", (unsigned int) getsize(p));
-
-        p = getafter(p);
-    }
+    freeblks = countfreelist();
 
     if (PRINTBLK)
         printf("%p(end)\n", heap_end);
@@ -332,7 +348,7 @@ void mm_check() {
 
 }
 
-/************************************************************************/
+/**************** functions for mm_check ***************************/
 
 //returns 1 header p is valid
 static inline int header_valid(void *blk) {
@@ -392,6 +408,8 @@ int checkblackheight(block_t *root) {
     return l;
 }
 
+//Exit fuction - called when mm_check finds an error, will deinitialize heap and
+//print heap status to help debugging, including heap area and tree structure.
 void Exit(int st) {
     printf("\n--Exit summary--\nheap area: %p to %p\nheap size: %x\n", mem_heap_lo(), mem_heap_hi(),
            (unsigned int) mem_heapsize());
@@ -401,6 +419,7 @@ void Exit(int st) {
     exit(st);
 }
 
+//blkstatus will print the reason of failure
 void blkstatus(void *ptr) {
     printf("\n");
     if (ptr < mem_heap_lo() || ptr > mem_heap_hi() || !((long) (ptr + 4) & 0x7)) {
@@ -417,6 +436,78 @@ void blkstatus(void *ptr) {
         printf("blkstatus: free block %p, prev: %p next: %p\n", ptr, ((block_t *) ptr)->left, ((block_t *) ptr)->right);
     printf("size: %x, before: %p after: %p\n", (unsigned int) getsize(ptr), getbefore(ptr), getafter(ptr));
 }
+
+int countfreelist() {
+    void *p = startblk;
+    void *heap_end = mem_heap_hi();
+    int cnt = 0;
+    if (PRINTBLK)
+        printf("block headers: ");
+    while (p < heap_end){
+        if (PRINTBLK)
+            printf("%p", p);
+        if (!header_valid(p) || p < mem_heap_lo() 
+                || p > mem_heap_hi() || (long) (p + 4) & 0x7) {
+            blkstatus(p);
+            Exit(1);
+        }
+        if (isfree(p)) {
+            cnt++;
+            if (PRINTBLK)
+                printf("(f,%x) ", (unsigned int) getsize(p));
+        } else if (PRINTBLK)
+            printf("(a,%x) ", (unsigned int) getsize(p));
+        p = getafter(p);
+    }
+    if (PRINTBLK)
+        printf("%p(end)\n", heap_end);
+    return cnt;
+}
+
+//print entire tree, will use two array of pointer instead of using dynamic array
+void print_tree(block_t *node) {
+    int ARRAYSIZE = 500;
+    block_t *array1[ARRAYSIZE];
+    block_t *array2[ARRAYSIZE];
+    block_t **current = array1;
+    block_t **next = array2;
+    array1[0] = node;
+    array1[1] = NULL;
+    printf("--tree form--\n");
+    while (1) {
+        int i = 0, j = 0;
+        while (current[i] != NULL) {
+            if (current[i] == lastblk)
+                printf("N");
+            else {
+                if (COLOR(current[i]) == RED)
+                    printf("R");
+                else
+                    printf("B");
+                next[j++] = current[i]->left;
+                next[j++] = current[i]->right;
+                if (j > ARRAYSIZE - 2) {
+                    //This won't happen actually
+                    printf("\ntree is too big to print it all\n");
+                    return;
+                }
+            }
+            i++;
+        }
+        if (i == 0)
+            break;
+        printf("\n");
+        next[j] = NULL;
+
+
+        block_t **tmp = current;
+        current = next;
+        next = tmp;
+    }
+}
+
+
+/********** functions for getting/setting values from free block *************/
 
 void pack(block_t *blk, size_t size, int alloc) {
     void *ptr = &(blk->header);
@@ -498,9 +589,21 @@ static void __left_rotate__(block_t *node);
 
 static void __right_rotate__(block_t *node);
 
-/*****************************************************************/
+/************* functions for red-black tree **********************/
 
-
+/*
+ * These functions are used in malloc and free, and will search for node or delete
+ * a node. 
+ * 
+ * bestfit - a function that finds the free block which best fits the input size.
+ *
+ * insert_node - this will insert node into the tree. If node with same size 
+ * exist in red-black tree, node will be put into list, and if it doesn't, this 
+ * will be inserted as new node of the red-black tree.
+ *
+ * rm_node - will remove a node from linked list, and if list size is 1, the node 
+ * will be removed from red-black tree.
+ */
 block_t *bestfit(size_t size) {
     block_t *blk = getroot();
     return __tree_search__(blk, size);
@@ -609,6 +712,7 @@ void __insert_node__(block_t *root, block_t *node) {
 /*
  * balance function - only call on new leaf node or color change
  * input must be always red
+ * this function will balance the tree by rules of the red-black tree
  */
 void __insert_balance__(block_t *node) {
     block_t *parent = node->parent;
@@ -620,7 +724,7 @@ void __insert_balance__(block_t *node) {
     }
     block_t *s = (grandparent->left == parent) ?
                  grandparent->right : grandparent->left;
-    if (COLOR(parent) == RED) {
+    if (COLOR(parent) == RED) {//red child of red node
         if (getsize(grandparent) <= getsize(parent) && COLOR(s) == BLACK) {
             if (getsize(node) < getsize(parent)) {     //  g
                 __right_rotate__(node);                //     p
@@ -654,6 +758,7 @@ void __insert_balance__(block_t *node) {
     }
 }
 
+//function that finds minimum value: used for removing node
 block_t *__find_min__(block_t *node) {
     block_t *left = node;
     while (left->left != lastblk)
@@ -679,6 +784,7 @@ void __rm_node__(block_t *node) {
         __double_black__(parent, child);
 }
 
+//for managing double-black occasion from removing node
 void __double_black__(block_t *p, block_t *node) {
     if (node == startblk)//made tree empty, no need to do anything
         return;
@@ -718,7 +824,6 @@ void __double_black__(block_t *p, block_t *node) {
         SETCOLOR(p, RED);
         __double_black__(p, node);
     }
-
 }
 
 void __left_rotate__(block_t *node) {//input will become root
@@ -739,38 +844,3 @@ void __right_rotate__(block_t *node) {//input will become root
     setright(node, p1);
 }
 
-
-void print_tree(block_t *node) {
-    block_t *array1[500];
-    block_t *array2[500];
-    block_t **current = array1;
-    block_t **next = array2;
-    array1[0] = node;
-    array1[1] = NULL;
-    printf("--tree form--\n");
-    while (1) {
-        int i = 0, j = 0;
-        while (current[i] != NULL) {
-            if (current[i] == lastblk)
-                printf("N");
-            else {
-                if (COLOR(current[i]) == RED)
-                    printf("R");
-                else
-                    printf("B");
-                next[j++] = current[i]->left;
-                next[j++] = current[i]->right;
-            }
-            i++;
-        }
-        if (i == 0)
-            break;
-        printf("\n");
-        next[j] = NULL;
-
-
-        block_t **tmp = current;
-        current = next;
-        next = tmp;
-    }
-}
