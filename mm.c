@@ -291,13 +291,18 @@ void mm_free(void *ptr) {
 
 /*
  * mm_realloc 
+ * If block is located at end of the heap, this function will extend heap without
+ * moving the payload. If block next to target block is free, and if coalescing 
+ * that block is enough to fit size, function will merge two blocks into one, and
+ * return the same ptr without copying payload. If none of these can be applied, 
+ * it will call mm_malloc and mm_free.
  */
-void *mm_realloc(void *ptr, size_t size){
+void *mm_realloc(void *ptr, size_t size) {
     block_t *oldblk = ptr - sizeof(unsigned int);
     void *newptr;
     size_t oldSize = getsize(oldblk) - 2 * sizeof(unsigned int);
 
-    if((void *) oldblk->next > mem_heap_hi()){
+    if ((void *) oldblk->next > mem_heap_hi()) {
         int extend = ALIGN(size - oldSize);
         void *p = mem_sbrk(size);
         if(p == (void *)-1){
@@ -305,8 +310,17 @@ void *mm_realloc(void *ptr, size_t size){
             Exit(0);
         }
         pack(oldblk, extend + getsize(oldblk), ALC);
-    } else if(oldSize < size){
-        newptr = mm_malloc(size + 1024);
+        return ptr;
+    } else if (oldSize < size) {
+        block_t *after = getafter(oldblk);
+        if (isfree(after) && oldSize + getsize(after) > size) {
+            rm_node(after);
+            pack(oldblk, oldSize + getsize(after), ALC);
+            return ptr;
+        }
+
+        //if realloc is called frequently, it might be called again
+        newptr = mm_malloc(size + 512);
         memcpy(newptr, ptr, oldSize);
         mm_free(ptr);
         return newptr;
