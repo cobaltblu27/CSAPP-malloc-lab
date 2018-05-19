@@ -2,7 +2,7 @@
 # Students' Makefile for the Malloc Lab
 #
 CC = gcc
-CFLAGS = -Wall -O0 -m32 -p -g #must remove pp, and set flag to O2 
+CFLAGS = -Wall -O2 -m32  #must remove pp, and set flag to O2 
 
 OBJS = mdriver.o mm.o memlib.o fsecs.o fcyc.o clock.o ftimer.o
 
