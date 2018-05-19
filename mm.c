@@ -54,8 +54,12 @@
 #include "mm.h"
 #include "memlib.h"
 
+//set to 1 to call mm_check
 #define CHECK 0
+
+//set to 1 to make mm_check heap status
 #define PRINTBLK 1
+
 /* single word (4) or double word (8) alignment */
 #define ALIGNMENT 8
 
@@ -64,10 +68,13 @@
 
 #define SIZE_T_SIZE (ALIGN(sizeof(size_t)))
 
+//returns pointer to the payload
 #define PTR(blk) (&((blk)->left))
 
+//returns the color of the block
 #define COLOR(p) (*(unsigned int *)(p) & 0x6)
 
+//set the color of the free block
 #define SETCOLOR(p, color) {*(unsigned int*)(p) = (*(unsigned int*)(p) & ~0x2) | (color);\
                 *(unsigned int *) ((void *) (p) + getsize(p) - 4) = *(unsigned int*) (p);}
 
@@ -93,7 +100,6 @@ typedef struct block {
     struct block *right;
     struct block *parent;
     struct block *next;
-
 } block_t;
 
 static block_t *startblk;
@@ -161,7 +167,8 @@ static void print_tree(block_t *node);
  *
  * First and second block will be prologue and epilogue block. Prologue block will
  * be used to keep track of root node, and epilogue block will be used as NIL block
- * in red-black tree. Color of epilogue block will be marked as black.
+ * in red-black tree. Color of epilogue block will be marked as black. This function
+ * will also create initial root of the tree.
  */
 
 
@@ -198,7 +205,10 @@ int mm_init(void) {
  *
  * In malloc, function will put padding in size, and allocate block from free list
  * or sbrk. If size is small, size will be rounded up to nearest power of 2 to 
- * utilize coalescing. 
+ * utilize coalescing. bestfit() will find the best free block to be allocated, 
+ * and will call sbrk if no free block fits the size. When calling sbrk, if 
+ * last block is free, function will extend the free block instead of extending
+ * the heap with the entire block size.
  */
 
 void *mm_malloc(size_t size) {
