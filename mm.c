@@ -58,7 +58,7 @@
 #define CHECK 0
 
 //set to 1 to make mm_check heap status
-#define PRINTBLK 1
+#define PRINTBLK 0
 
 /* single word (4) or double word (8) alignment */
 #define ALIGNMENT 8
@@ -69,7 +69,7 @@
 #define SIZE_T_SIZE (ALIGN(sizeof(size_t)))
 
 //returns pointer to the payload
-#define PTR(blk) (&((blk)->left))
+#define PTR(blk) (&(GETLEFT(blk)))
 
 //returns the color of the block
 #define COLOR(p) (*(unsigned int *)(p) & 0x6)
@@ -77,6 +77,11 @@
 //set the color of the free block
 #define SETCOLOR(p, color) {*(unsigned int*)(p) = (*(unsigned int*)(p) & ~0x2) | (color);\
                 *(unsigned int *) ((void *) (p) + getsize(p) - 4) = *(unsigned int*) (p);}
+
+#define GETLEFT(p) *((void **)p + 1)
+#define GETRIGHT(p) *((void **)p + 2)
+#define GETPARENT(p) *((void **)p + 3)
+#define GETNEXT(p) *((void **)p + 4)
 
 #define ALC 0
 #define FREE 1
@@ -94,73 +99,65 @@ void Exit(int st);
 
 void blkstatus(void *ptr);
 
-typedef struct block {
-    unsigned int header;
-    struct block *left;
-    struct block *right;
-    struct block *parent;
-    struct block *next;
-} block_t;
-
-static block_t *startblk;
-static block_t *lastblk;
+static void *startblk;
+static void *lastblk;
 
 //fill in header and footer
-static inline void pack(block_t *blk, size_t size, int alloc);
+static inline void pack(void *blk, size_t size, int alloc);
 
 //check if header is valid
 static inline int header_valid(void *blk);
 
 //get size of block(including header and footer)
-static inline size_t getsize(block_t *blk);
+static inline size_t getsize(void *blk);
 
 //set left node, set to lastblk if none
-static inline void setleft(block_t *blk, block_t *leftnode);
+static inline void setleft(void *blk, void *leftnode);
 
 //set right node, set to lastblk if none
-static inline void setright(block_t *blk, block_t *rightnode);
+static inline void setright(void *blk, void *rightnode);
 
 //set parent node
-static inline void setparent(block_t *blk, block_t *parentnode);
+static inline void setparent(void *blk, void *parentnode);
 
 //set next block in linked list
-static inline void setnext(block_t *blk, block_t *nextnode);
+static inline void setnext(void *blk, void *nextnode);
 
 //get adjacent block right after
-static inline block_t *getafter(block_t *blk);
+static inline void *getafter(void *blk);
 
 //get adjacent block right before
-static inline block_t *getbefore(block_t *blk);
+static inline void *getbefore(void *blk);
 
 //check if allocated
-static inline int allocated(block_t *blk);
+static inline int allocated(void *blk);
 
 //check if block is free
-static inline int isfree(block_t *blk);
+static inline int isfree(void *blk);
 
 //returns root which is connected from static block startblk
-static inline block_t *getroot();
+static inline void *getroot();
 
 //finds the best fit free block for given size, returns lastblk if none
-static block_t *bestfit(size_t size);
+static void *bestfit(size_t size);
 
 //remove node
-static void rm_node(block_t *target);
+static void rm_node(void *target);
 
 //insert node into the red-black tree
-static void insert_node(block_t *node);
+static void insert_node(void *node);
 
 //count the number of free blocks by traversing heap area
 static int countfreelist();
 
 //count the number of free blocks by traversing tree
-static int checkfreetree(block_t *root);
+static int checkfreetree(void *root);
 
 //check if leaf node has same black height
-static int checkblackheight(block_t *root);
+static int checkblackheight(void *root);
 
 //when mm_check finds an error, this function will print what the tree looks like
-static void print_tree(block_t *node);
+static void print_tree(void *node);
 
 /*
  * mm_init - initialize the malloc package.
@@ -224,14 +221,14 @@ void *mm_malloc(size_t size) {
         rsize = rsize + 1;
     }
     newsize = ALIGN(rsize + ALIGNMENT);
-    block_t *p;
+    void *p;
     if (newsize < 3 * ALIGNMENT)
         newsize = 3 * ALIGNMENT;
     p = bestfit(newsize);
     if (p == lastblk) {
-        block_t *new_blk;
-        block_t *endblock = getbefore(mem_heap_hi() + 1);
-        if (isfree(endblock) && getafter(lastblk) != endblock){
+        void *new_blk;
+        void *endblock = getbefore(mem_heap_hi() + 1);
+        if (isfree(endblock) && getafter(lastblk) != endblock) {
             size_t extend = newsize - getsize(endblock);
             mem_sbrk((int) extend);
             rm_node(endblock);
@@ -241,7 +238,7 @@ void *mm_malloc(size_t size) {
             return PTR(endblock);
         }
         new_blk = mem_sbrk((int) newsize);
-        if(new_blk == (void *)-1){
+        if (new_blk == (void *) -1) {
             printf("sbrk failed!\n");
             Exit(0);
         }
@@ -256,7 +253,7 @@ void *mm_malloc(size_t size) {
         pack(p, oldsize, ALC);
     } else {
         rm_node(p);
-        block_t *after;
+        void *after;
         pack(p, newsize, ALC);
         //split
         after = getafter(p);
@@ -277,8 +274,8 @@ void *mm_malloc(size_t size) {
  * tree, coalesced, and then will be put back into the tree.
  */
 void mm_free(void *ptr) {
-    block_t *p;//points to header
-    block_t *before, *after;
+    void *p;//points to header
+    void *before, *after;
     size_t blksize;
     p = ptr - sizeof(unsigned int);
 //    printf("freeing %p (%p, size: %x)\n", ptr, p, (int) getsize(p));
@@ -322,20 +319,20 @@ void mm_free(void *ptr) {
  * it will call mm_malloc and mm_free.
  */
 void *mm_realloc(void *ptr, size_t size) {
-    block_t *oldblk = ptr - sizeof(unsigned int);
+    void *oldblk = ptr - sizeof(unsigned int);
     void *newptr;
     size_t oldSize = getsize(oldblk) - 2 * sizeof(unsigned int);
 
     if ((void *) getafter(oldblk) > mem_heap_hi() && oldSize < size) {
         int extend = ALIGN(size - oldSize);
         void *p = mem_sbrk(extend);
-        if(p == (void *)-1){
+        if (p == (void *) -1) {
             return NULL;
         }
         pack(oldblk, extend + getsize(oldblk), ALC);
         return ptr;
     } else if (oldSize < size) {
-        block_t *after = getafter(oldblk);
+        void *after = getafter(oldblk);
         if (isfree(after) && oldSize + getsize(after) > size) {
             rm_node(after);
             pack(oldblk, oldSize + getsize(after), ALC);
@@ -350,14 +347,14 @@ void *mm_realloc(void *ptr, size_t size) {
     }
     return ptr;
 }
-   
 
-int treesize(block_t *root) {
+
+int treesize(void *root) {
     if (root == lastblk)
         return 0;
     int freecnt = 1;
-    freecnt += treesize(root->left);
-    freecnt += treesize(root->right);
+    freecnt += treesize(GETLEFT(root));
+    freecnt += treesize(GETRIGHT(root));
     return freecnt;
 }
 
@@ -388,26 +385,26 @@ static inline int header_valid(void *blk) {
     return *(unsigned int *) blk == *(unsigned int *) (blk + getsize(blk) - 4);
 }
 
-int cntlist(block_t *node) {
+int cntlist(void *node) {
     if (node == lastblk)
         return 0;
-    else return 1 + cntlist(node->next);
+    else return 1 + cntlist(GETNEXT(node));
 }
 
-int checkfreetree(block_t *root) {
-    block_t *left = root->left;
-    block_t *right = root->right;
+int checkfreetree(void *root) {
+    void *left = GETLEFT(root);
+    void *right = GETRIGHT(root);
     if (root == lastblk)
         return 0;
     if (isfree(root) != 1) {
         printf("block in tree is not actually free\n");
         Exit(1);
     }
-    if (root->header & 0x4) {
+    if (*(unsigned int *) root & 0x4) {
         printf("tree connection is messed up\n");
         Exit(1);
     }
-    root->header = root->header | 0x4;//flag for checking visited node
+    *(unsigned int *) root = *(unsigned int *) root | 0x4;//flag for checking visited node
     int freecnt = cntlist(root);
     if (COLOR(root) == RED) {
         if (COLOR(left) == RED || COLOR(right) == RED) {
@@ -423,15 +420,15 @@ int checkfreetree(block_t *root) {
 
     freecnt += checkfreetree(right);
     freecnt += checkfreetree(left);
-    root->header = root->header & ~0x4;
+    *(unsigned int *) root = *(unsigned int *) root & ~0x4;
     return freecnt;
 }
 
-int checkblackheight(block_t *root) {
+int checkblackheight(void *root) {
     if (root == lastblk)
         return 1;
-    int l = checkblackheight(root->left);
-    int r = checkblackheight(root->right);
+    int l = checkblackheight(GETLEFT(root));
+    int r = checkblackheight(GETRIGHT(root));
     if (l != r) {
         printf("black height incorrect!: %p, left: %d right: %d\n", root, l, r);
         Exit(0);
@@ -466,7 +463,7 @@ void blkstatus(void *ptr) {
     if (allocated(ptr))
         printf("blkstatus: Allocated block %p\n", ptr);
     else
-        printf("blkstatus: free block %p, prev: %p next: %p\n", ptr, ((block_t *) ptr)->left, ((block_t *) ptr)->right);
+        printf("blkstatus: free block %p, prev: %p next: %p\n", ptr, GETLEFT(ptr), GETRIGHT(ptr));
     printf("size: %x, before: %p after: %p\n", (unsigned int) getsize(ptr), getbefore(ptr), getafter(ptr));
 }
 
@@ -476,11 +473,11 @@ int countfreelist() {
     int cnt = 0;
     if (PRINTBLK)
         printf("block headers: ");
-    while (p < heap_end){
+    while (p < heap_end) {
         if (PRINTBLK)
             printf("%p", p);
-        if (!header_valid(p) || p < mem_heap_lo() 
-                || p > mem_heap_hi() || (long) (p + 4) & 0x7) {
+        if (!header_valid(p) || p < mem_heap_lo()
+            || p > mem_heap_hi() || (long) (p + 4) & 0x7) {
             blkstatus(p);
             Exit(1);
         }
@@ -498,12 +495,12 @@ int countfreelist() {
 }
 
 //print entire tree, will use two array of pointer instead of using dynamic array
-void print_tree(block_t *node) {
+void print_tree(void *node) {
     int ARRAYSIZE = 500;
-    block_t *array1[ARRAYSIZE];
-    block_t *array2[ARRAYSIZE];
-    block_t **current = array1;
-    block_t **next = array2;
+    void *array1[ARRAYSIZE];
+    void *array2[ARRAYSIZE];
+    void **current = array1;
+    void **next = array2;
     array1[0] = node;
     array1[1] = NULL;
     printf("--tree form--\n");
@@ -517,8 +514,8 @@ void print_tree(block_t *node) {
                     printf("R");
                 else
                     printf("B");
-                next[j++] = current[i]->left;
-                next[j++] = current[i]->right;
+                next[j++] = GETLEFT(current[i]);
+                next[j++] = GETRIGHT(current[i]);
                 if (j > ARRAYSIZE - 2) {
                     //This won't happen actually
                     printf("\ntree is too big to print it all\n");
@@ -533,7 +530,7 @@ void print_tree(block_t *node) {
         next[j] = NULL;
 
 
-        block_t **tmp = current;
+        void **tmp = current;
         current = next;
         next = tmp;
     }
@@ -542,85 +539,87 @@ void print_tree(block_t *node) {
 
 /********** functions for getting/setting values from free block *************/
 
-void pack(block_t *blk, size_t size, int alloc) {
-    void *ptr = &(blk->header);
-    blk->header = (unsigned int) size | alloc;
+void pack(void *blk, size_t size, int alloc) {
+    void *ptr = blk;
+    *(unsigned int *) blk = (unsigned int) size | alloc;
     ptr = ptr + size - sizeof(ptr);
     *(unsigned int *) ptr = (unsigned int) size | alloc;
 }
 
-size_t getsize(block_t *blk) {
-    return blk->header & ~0x7;
+size_t getsize(void *blk) {
+    return *(unsigned int *) blk & ~0x7;
 }
 
-block_t *getbefore(block_t *blk) {
+void *getbefore(void *blk) {
     void *ptr = blk;
     void *footer = ptr - 4;
     ptr = ptr - (*(unsigned int *) footer & ~0x7);
     return ptr;
 }
 
-block_t *getafter(block_t *blk) {
+void *getafter(void *blk) {
     void *ptr = blk;
     ptr = ptr + getsize(blk);
     return ptr;
 }
 
-void setleft(block_t *blk, block_t *leftnode) {
-    blk->left = leftnode;
-    leftnode->parent = blk;
+void setleft(void *blk, void *leftnode) {
+    void *p;
+    p = blk;
+    GETLEFT(p) = leftnode;
+    GETPARENT(leftnode) = blk;
 }
 
-void setright(block_t *blk, block_t *rightnode) {
-    blk->right = rightnode;
-    rightnode->parent = blk;
+void setright(void *blk, void *rightnode) {
+    GETRIGHT(blk) = rightnode;
+    GETPARENT(rightnode) = blk;
 }
 
-void setparent(block_t *blk, block_t *parentnode) {
-    blk->parent = parentnode;
-    block_t **targetptr;
+void setparent(void *blk, void *parentnode) {
+    GETPARENT(blk) = (void *) parentnode;
+    void **targetptr;
     if (getsize(blk) >= getsize(parentnode) || parentnode == startblk)
-        targetptr = &(parentnode->right);
+        targetptr = &(GETRIGHT(parentnode));
     else
-        targetptr = &(parentnode->left);
+        targetptr = &(GETLEFT(parentnode));
     *targetptr = blk;
 }
 
-void setnext(block_t *blk, block_t *nextnode) {
-    blk->next = nextnode;
-    nextnode->parent = blk;
+void setnext(void *blk, void *nextnode) {
+    GETNEXT(blk) = nextnode;
+    GETPARENT(nextnode) = blk;
 }
 
 
-int allocated(block_t *blk) {
-    return 0 == (blk->header & 0x7);
+int allocated(void *blk) {
+    return 0 == (*(unsigned int *) blk & 0x7);
 }
 
-int isfree(block_t *blk) {
-    return blk->header & 0x1;
+int isfree(void *blk) {
+    return *(unsigned int *) blk & 0x1;
 }
 
-block_t *getroot() {
-    return startblk->right;
+void *getroot() {
+    return GETRIGHT(startblk);
 }
 
 /***************static functions for recursive call****************/
 
-static block_t *__tree_search__(block_t *node, size_t size);
+static void *__tree_search__(void *node, size_t size);
 
-static void __insert_node__(block_t *root, block_t *node);
+static void __insert_node__(void *root, void *node);
 
-static void __insert_balance__(block_t *node);
+static void __insert_balance__(void *node);
 
-static block_t *__find_min__(block_t *node);
+static void *__find_min__(void *node);
 
-static void __rm_node__(block_t *node);
+static void __rm_node__(void *node);
 
-static void __double_black__(block_t *p, block_t *node);
+static void __double_black__(void *p, void *node);
 
-static void __left_rotate__(block_t *node);
+static void __left_rotate__(void *node);
 
-static void __right_rotate__(block_t *node);
+static void __right_rotate__(void *node);
 
 /************* functions for red-black tree **********************/
 
@@ -637,14 +636,14 @@ static void __right_rotate__(block_t *node);
  * rm_node - will remove a node from linked list, and if list size is 1, the node 
  * will be removed from red-black tree.
  */
-block_t *bestfit(size_t size) {
-    block_t *blk = getroot();
+void *bestfit(size_t size) {
+    void *blk = getroot();
     return __tree_search__(blk, size);
 }
 
 
-void insert_node(block_t *node) {
-    block_t *root = getroot();
+void insert_node(void *node) {
+    void *root = getroot();
     if (root == lastblk) {
         //tree empty, make node root
         setright(startblk, node);
@@ -663,26 +662,26 @@ void insert_node(block_t *node) {
 }
 
 
-void rm_node(block_t *target) {
-    block_t *prev = target->parent;
-    block_t *next = target->next;
+void rm_node(void *target) {
+    void *prev = GETPARENT(target);
+    void *next = GETNEXT(target);
     if (getsize(prev) == getsize(target) && isfree(prev)) {
         //parent could be prologue block
         setnext(prev, next);
         return;
     } else if (next != lastblk) {
-        setparent(next, target->parent);
-        setleft(next, target->left);
-        setright(next, target->right);
+        setparent(next, GETPARENT(target));
+        setleft(next, GETLEFT(target));
+        setright(next, GETRIGHT(target));
         SETCOLOR(next, COLOR(target));
         return;
     }
 
     //no replaceable entry in seg-list
-    block_t *replace = NULL;
-    if (target->left != lastblk && target->right != lastblk) {
+    void *replace = NULL;
+    if (GETLEFT(target) != lastblk && GETRIGHT(target) != lastblk) {
         //has two child node
-        replace = __find_min__(target->right);
+        replace = __find_min__(GETRIGHT(target));
     } else {
         __rm_node__(target);
         return;
@@ -693,50 +692,50 @@ void rm_node(block_t *target) {
        tree balance will be performed with target node,
        and target node will be switched to replace block afterwards */
 
-    setparent(replace, target->parent);
-    setleft(replace, target->left);
-    setright(replace, target->right);
+    setparent(replace, GETPARENT(target));
+    setleft(replace, GETLEFT(target));
+    setright(replace, GETRIGHT(target));
     SETCOLOR(replace, COLOR(target));
 
 }
 
 //////////////////////////////////////////////////////////////////////
 
-block_t *__tree_search__(block_t *node, size_t size) {
+void *__tree_search__(void *node, size_t size) {
     size_t blksize = getsize(node);
     if (node == lastblk)
         return node;
     if (blksize < size) {
-        return __tree_search__(node->right, size);
+        return __tree_search__(GETRIGHT(node), size);
     } else {
-        block_t *rtblock;
-        rtblock = __tree_search__(node->left, size);
+        void *rtblock;
+        rtblock = __tree_search__(GETLEFT(node), size);
 
         if (rtblock == lastblk)
             rtblock = node;
 
-        if (rtblock->next != lastblk)
-            return rtblock->next;
+        if (GETNEXT(rtblock) != lastblk)
+            return GETNEXT(rtblock);
         else
             return rtblock;
     }
 }
 
-void __insert_node__(block_t *root, block_t *node) {
+void __insert_node__(void *root, void *node) {
     if (getsize(root) > getsize(node)) {
         //left
-        if (root->left == lastblk) {
+        if (GETLEFT(root) == lastblk) {
             setleft(root, node);
             __insert_balance__(node);
-        } else __insert_node__(root->left, node);
+        } else __insert_node__(GETLEFT(root), node);
     } else if (getsize(root) < getsize(node)) {
         //right
-        if (root->right == lastblk) {
+        if (GETRIGHT(root) == lastblk) {
             setright(root, node);
             __insert_balance__(node);
-        } else __insert_node__(root->right, node);
+        } else __insert_node__(GETRIGHT(root), node);
     } else {
-        block_t *next = root->next;
+        void *next = GETNEXT(root);
         setnext(node, next);
         setnext(root, node);
     }
@@ -747,16 +746,16 @@ void __insert_node__(block_t *root, block_t *node) {
  * input must be always red
  * this function will balance the tree by rules of the red-black tree
  */
-void __insert_balance__(block_t *node) {
-    block_t *parent = node->parent;
-    block_t *grandparent = parent->parent;
+void __insert_balance__(void *node) {
+    void *parent = GETPARENT(node);
+    void *grandparent = GETPARENT(parent);
 
     if (node == getroot()) {
         SETCOLOR(node, BLACK);
         return;
     }
-    block_t *s = (grandparent->left == parent) ?
-                 grandparent->right : grandparent->left;
+    void *s = (GETLEFT(grandparent) == parent) ?
+              GETRIGHT(grandparent) : GETLEFT(grandparent);
     if (COLOR(parent) == RED) {//red child of red node
         if (getsize(grandparent) <= getsize(parent) && COLOR(s) == BLACK) {
             if (getsize(node) < getsize(parent)) {     //  g
@@ -784,18 +783,18 @@ void __insert_balance__(block_t *node) {
             }
         } else {                            // grandparent(b) have two red child
             SETCOLOR(grandparent, RED);
-            SETCOLOR(grandparent->left, BLACK);
-            SETCOLOR(grandparent->right, BLACK);
+            SETCOLOR(GETLEFT(grandparent), BLACK);
+            SETCOLOR(GETRIGHT(grandparent), BLACK);
             __insert_balance__(grandparent);
         }
     }
 }
 
 //function that finds minimum value: used for removing node
-block_t *__find_min__(block_t *node) {
-    block_t *left = node;
-    while (left->left != lastblk)
-        left = left->left;
+void *__find_min__(void *node) {
+    void *left = node;
+    while (GETLEFT(left) != lastblk)
+        left = GETLEFT(left);
     return left;
 }
 
@@ -803,11 +802,11 @@ block_t *__find_min__(block_t *node) {
  * function for removing node with one or no child,
  * will completely detach node from tree
  */
-void __rm_node__(block_t *node) {
-    block_t *parent = node->parent;
-    block_t *child; //child = existing child node, lastblk(black) if none
+void __rm_node__(void *node) {
+    void *parent = GETPARENT(node);
+    void *child; //child = existing child node, lastblk(black) if none
 
-    child = (node->left == lastblk) ? node->right : node->left;
+    child = (GETLEFT(node) == lastblk) ? GETRIGHT(node) : GETLEFT(node);
 
     (getsize(node) < getsize(parent) ? setleft : setright)(parent, child);
 
@@ -818,30 +817,30 @@ void __rm_node__(block_t *node) {
 }
 
 //for managing double-black occasion from removing node
-void __double_black__(block_t *p, block_t *node) {
+void __double_black__(void *p, void *node) {
     if (node == startblk)//made tree empty, no need to do anything
         return;
     if (node == getroot())
         return;
-    block_t *s, *l, *r;//sibling, sibling-left, sibling-right
-    if (p->left == node) {
-        s = p->right;
-        l = s->left;
-        r = s->right;
+    void *s, *l, *r;//sibling, sibling-left, sibling-right
+    if (GETLEFT(p) == node) {
+        s = GETRIGHT(p);
+        l = GETLEFT(s);
+        r = GETRIGHT(s);
     } else {
-        s = p->left;
-        l = s->right;
-        r = s->left;
+        s = GETLEFT(p);
+        l = GETRIGHT(s);
+        r = GETLEFT(s);
     }
 
     if (COLOR(r) == RED) {//case *-2
         int p_color = COLOR(p);
-        (p->left == node ? __left_rotate__ : __right_rotate__)(s);
+        (GETLEFT(p) == node ? __left_rotate__ : __right_rotate__)(s);
         SETCOLOR(p, BLACK);
         SETCOLOR(s, p_color);
         SETCOLOR(r, BLACK);
     } else if (COLOR(l) == RED) {//case *-3
-        (p->left == node ? __right_rotate__ : __left_rotate__)(l);
+        (GETLEFT(p) == node ? __right_rotate__ : __left_rotate__)(l);
         SETCOLOR(l, BLACK);
         SETCOLOR(s, RED);
         __double_black__(p, node);
@@ -850,28 +849,28 @@ void __double_black__(block_t *p, block_t *node) {
         SETCOLOR(s, RED);
     } else if (COLOR(s) == BLACK) {//case 2-1
         SETCOLOR(s, RED);
-        __double_black__(p->parent, p);
+        __double_black__(GETPARENT(p), p);
     } else {//case 2-4
-        (p->left == node ? __left_rotate__ : __right_rotate__)(s);
+        (GETLEFT(p) == node ? __left_rotate__ : __right_rotate__)(s);
         SETCOLOR(s, BLACK);
         SETCOLOR(p, RED);
         __double_black__(p, node);
     }
 }
 
-void __left_rotate__(block_t *node) {//input will become root
-    block_t *p1 = node->parent;
-    block_t *p2 = p1->parent;
-    block_t *node_l = node->left;
+void __left_rotate__(void *node) {//input will become root
+    void *p1 = GETPARENT(node);
+    void *p2 = GETPARENT(p1);
+    void *node_l = GETLEFT(node);
     setparent(node, p2);
     setright(p1, node_l);
     setleft(node, p1);
 }
 
-void __right_rotate__(block_t *node) {//input will become root
-    block_t *p1 = node->parent;
-    block_t *p2 = p1->parent;
-    block_t *node_r = node->right;
+void __right_rotate__(void *node) {//input will become root
+    void *p1 = GETPARENT(node);
+    void *p2 = GETPARENT(p1);
+    void *node_r = GETRIGHT(node);
     setparent(node, p2);
     setleft(p1, node_r);
     setright(node, p1);
